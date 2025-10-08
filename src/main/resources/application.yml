@@ -1,0 +1,48 @@
+# Database Configuration
+quarkus:
+  datasource:
+    db-kind: postgresql
+    username: ${DB_USERNAME:achan}
+    password: ${DB_PASSWORD:achan}
+    jdbc:
+      url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:54320}/${DB_NAME:achan}
+      max-size: 20
+      min-size: 5
+
+  # Hibernate
+  hibernate-orm:
+    database:
+      generation: none
+    log:
+      sql: ${LOG_SQL:false}
+
+  # Flyway Migration
+  flyway:
+    migrate-at-start: true
+    baseline-on-migrate: true
+
+  # Kafka Configuration
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+
+  # Logging
+  log:
+    level: INFO
+    category:
+      "concord.dev":
+        level: ${APP_LOG_LEVEL:DEBUG}
+    console:
+      json: true
+
+  # OpenTelemetry
+  otel:
+    exporter:
+      otlp:
+        endpoint: ${OTEL_ENDPOINT:http://localhost:4317}
+
+# Application-specific config
+kafka:
+  bootstrap:
+    servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+  topic:
+    url-crawl-requests: ${KAFKA_TOPIC_URL_CRAWL:url-crawl-requests}
