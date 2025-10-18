@@ -41,8 +41,8 @@ class ThreadResource(
 
     @GET
     @Path("/by-url")
-    fun getThreadByUrl(@QueryParam("url") url: String): Response {
-        if (url.isBlank()) {
+    fun getThreadByUrl(@QueryParam("url") url: String?): Response {
+        if (url.isNullOrBlank()) {
             return Response.status(Response.Status.BAD_REQUEST)
                 .entity(mapOf("error" to "URL parameter is required"))
                 .build()
