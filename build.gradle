@@ -45,6 +45,19 @@ dependencies {
     // Testing
     testImplementation 'io.quarkus:quarkus-junit5'
     testImplementation 'io.rest-assured:rest-assured'
+    testImplementation 'io.quarkus:quarkus-test-common'
+
+    // Testcontainers
+    testImplementation 'org.testcontainers:testcontainers:1.20.4'
+    testImplementation 'org.testcontainers:postgresql:1.20.4'
+    testImplementation 'org.testcontainers:kafka:1.20.4'
+    testImplementation 'org.testcontainers:junit-jupiter:1.20.4'
+
+    // MockK for Kotlin mocking
+    testImplementation 'io.mockk:mockk:1.13.14'
+
+    // Kotlin test support
+    testImplementation 'org.jetbrains.kotlin:kotlin-test-junit5'
 }
 
 group = 'concord.dev'
