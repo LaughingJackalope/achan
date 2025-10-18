@@ -49,7 +49,7 @@ class ThreadService(
         return Thread.findByUrl(normalizedUrl)
     }
 
-    @Transactional
+    @Transactional(Transactional.TxType.MANDATORY)
     fun incrementPostCount(threadId: UUID) {
         val thread = Thread.find("id", threadId).firstResult() ?: throw IllegalArgumentException("Thread not found: $threadId")
         thread.postCount++

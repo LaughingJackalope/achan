@@ -14,7 +14,7 @@ class PostService(
     private val threadService: ThreadService
 ) {
 
-    @Transactional(Transactional.TxType.REQUIRES_NEW)
+    @Transactional
     fun createPost(
         threadId: UUID,
         content: String,
@@ -22,6 +22,7 @@ class PostService(
         metadata: String? = null
     ): Post {
         // Use serializable isolation for sequential post numbering
+        // Must be set BEFORE any queries in this transaction
         entityManager.unwrap(org.hibernate.Session::class.java)
             .doWork { connection ->
                 connection.createStatement().use { stmt ->

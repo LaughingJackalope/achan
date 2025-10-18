@@ -20,6 +20,7 @@ dependencies {
     // REST API
     implementation 'io.quarkus:quarkus-rest'
     implementation 'io.quarkus:quarkus-rest-jackson'
+    implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
 
     // Messaging
     implementation 'io.quarkus:quarkus-kafka-client'

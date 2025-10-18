@@ -28,8 +28,8 @@ class KafkaProducerService(
 
         producer.send(record) { metadata, exception ->
             if (exception != null) {
-                // Log error - OpenTelemetry will capture this
-                throw exception
+                // Log error but don't throw - this is async callback
+                println("ERROR: Failed to send Kafka message for thread $threadId: ${exception.message}")
             }
         }
     }
