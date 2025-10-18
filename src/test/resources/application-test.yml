@@ -1,0 +1,53 @@
+# Test Profile Configuration
+# This configuration is used for integration tests with Testcontainers
+quarkus:
+  datasource:
+    db-kind: postgresql
+    # Testcontainers will override these values dynamically
+    username: test
+    password: test
+    jdbc:
+      url: jdbc:postgresql://localhost:5432/test
+      max-size: 10
+      min-size: 1
+
+  # Hibernate
+  hibernate-orm:
+    database:
+      generation: drop-and-create
+    log:
+      sql: true
+
+  # Flyway Migration
+  flyway:
+    migrate-at-start: true
+    baseline-on-migrate: true
+    clean-at-start: true
+
+  # Kafka Configuration
+  kafka:
+    # Testcontainers will override this dynamically
+    bootstrap-servers: localhost:9092
+
+  # Logging
+  log:
+    level: INFO
+    category:
+      "concord.dev":
+        level: DEBUG
+      "org.testcontainers":
+        level: INFO
+    console:
+      json: false
+
+  # OpenTelemetry - disabled for tests
+  otel:
+    sdk:
+      disabled: true
+
+# Application-specific config for tests
+kafka:
+  bootstrap:
+    servers: localhost:9092
+  topic:
+    url-crawl-requests: url-crawl-requests-test
