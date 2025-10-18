@@ -20,15 +20,19 @@ class ThreadService(
 
         val existing = Thread.findByUrl(normalizedUrl)
         if (existing != null) {
+            // Update timestamp to indicate this thread was accessed again
+            existing.updatedAt = Instant.now()
+            existing.persist()
             return existing
         }
 
+        val now = Instant.now()
         val thread = Thread().apply {
             this.id = UUID.randomUUID()
             this.url = normalizedUrl
             this.slug = slug
-            this.createdAt = Instant.now()
-            this.updatedAt = Instant.now()
+            this.createdAt = now
+            this.updatedAt = now
             this.postCount = 0
             this.crawlStatus = CrawlStatus.PENDING
         }
