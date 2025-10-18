@@ -11,8 +11,6 @@ quarkus:
 
   # Hibernate
   hibernate-orm:
-    database:
-      generation: none
     log:
       sql: ${LOG_SQL:false}
 
@@ -21,9 +19,6 @@ quarkus:
     migrate-at-start: true
     baseline-on-migrate: true
 
-  # Kafka Configuration
-  kafka:
-    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
 
   # Logging
   log:
@@ -32,7 +27,8 @@ quarkus:
       "concord.dev":
         level: ${APP_LOG_LEVEL:DEBUG}
     console:
-      json: true
+      json:
+        enabled: true
 
   # OpenTelemetry
   otel:
