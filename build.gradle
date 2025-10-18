@@ -33,8 +33,9 @@ dependencies {
     implementation 'io.quarkus:quarkus-config-yaml'
     implementation 'io.quarkus:quarkus-kotlin'
     implementation 'io.quarkus:quarkus-logging-json'
-    implementation 'io.quarkus:quarkus-kubernetes-config'
-    implementation 'io.quarkus:quarkus-kubernetes'
+    // Kubernetes extensions commented out - add back when deploying to K8s
+    // implementation 'io.quarkus:quarkus-kubernetes-config'
+    // implementation 'io.quarkus:quarkus-kubernetes'
 
     // Kotlin
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'
