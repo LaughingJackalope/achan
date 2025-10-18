@@ -120,3 +120,39 @@ docker-compose restart kafka
 If ports 5432, 9092, or 8080 are in use:
 1. Stop conflicting services
 2. Or modify `docker-compose.yml` port mappings
+
+## Configuration Profiles
+
+### Development Profile (Default)
+When running `./gradlew quarkusDev`, the `dev` profile is automatically activated with these settings:
+- OpenTelemetry disabled (to avoid warning logs about missing OTEL collector)
+- Verbose logging for `concord.dev` package
+
+### Enabling OpenTelemetry
+If you want distributed tracing in local development:
+
+1. Add an OTEL collector to `docker-compose.yml`:
+```yaml
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    ports:
+      - "16686:16686"  # Jaeger UI
+      - "4317:4317"    # OTLP gRPC receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+```
+
+2. Start the collector:
+```bash
+docker-compose up -d jaeger
+```
+
+3. Remove or comment out the OTEL disable setting in `src/main/resources/application-dev.yml`:
+```yaml
+# quarkus:
+#   otel:
+#     sdk:
+#       disabled: true
+```
+
+4. Restart the application and view traces at `http://localhost:16686`
