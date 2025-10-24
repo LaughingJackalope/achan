@@ -14,15 +14,17 @@ data class PostResponse(
     val threadId: UUID,
     val parentPostId: Long?,
     val content: String,
+    val contentHtml: String,
     val postedAt: Instant,
     val postNumber: Int
 ) {
     companion object {
-        fun from(post: Post) = PostResponse(
+        fun from(post: Post, contentHtml: String) = PostResponse(
             postId = post.id!!,
             threadId = post.threadId,
             parentPostId = post.parentPostId,
             content = post.content,
+            contentHtml = contentHtml,
             postedAt = post.postedAt,
             postNumber = post.postNumber
         )

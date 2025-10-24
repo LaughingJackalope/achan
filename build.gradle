@@ -27,6 +27,7 @@ dependencies {
 
     // Content Processing
     implementation 'org.commonmark:commonmark:0.22.0'
+    implementation 'com.googlecode.owasp-java-html-sanitizer:owasp-java-html-sanitizer:20240325.1'
 
     // Observability & Config
     implementation 'io.quarkus:quarkus-opentelemetry'

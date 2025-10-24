@@ -3,6 +3,7 @@ package concord.dev.api
 import concord.dev.api.dto.CreatePostRequest
 import concord.dev.api.dto.PostListResponse
 import concord.dev.api.dto.PostResponse
+import concord.dev.service.MarkdownService
 import concord.dev.service.PostService
 import jakarta.ws.rs.*
 import jakarta.ws.rs.core.MediaType
@@ -13,7 +14,8 @@ import java.util.UUID
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 class PostResource(
-    private val postService: PostService
+    private val postService: PostService,
+    private val markdownService: MarkdownService
 ) {
 
     @POST
@@ -31,8 +33,10 @@ class PostResource(
             metadata = metadata
         )
 
+        val contentHtml = markdownService.render(post.content)
+
         return Response.status(Response.Status.CREATED)
-            .entity(PostResponse.from(post))
+            .entity(PostResponse.from(post, contentHtml))
             .build()
     }
 
@@ -57,7 +61,10 @@ class PostResource(
         val total = postService.getPostCount(threadId)
 
         val response = PostListResponse(
-            posts = posts.map { PostResponse.from(it) },
+            posts = posts.map { post ->
+                val contentHtml = markdownService.render(post.content)
+                PostResponse.from(post, contentHtml)
+            },
             total = total,
             limit = validatedLimit,
             offset = validatedOffset
