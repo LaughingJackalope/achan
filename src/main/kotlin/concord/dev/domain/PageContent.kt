@@ -9,7 +9,6 @@ import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.annotations.Type
 import org.hibernate.type.SqlTypes
 import java.time.Instant
-import java.util.UUID
 
 @Entity
 @Table(name = "page_content")
@@ -20,7 +19,8 @@ class PageContent : PanacheEntityBase {
     var id: Long? = null
 
     @Column(name = "thread_id", nullable = false, unique = true, columnDefinition = "UUID")
-    lateinit var threadId: UUID
+    @Convert(converter = ThreadIdConverter::class)
+    var threadId: ThreadId? = null
 
     @Column(nullable = false)
     lateinit var url: String
@@ -68,7 +68,7 @@ class PageContent : PanacheEntityBase {
     var embedding: PGvector? = null
 
     companion object : PanacheCompanion<PageContent> {
-        fun findByThreadId(threadId: UUID): PageContent? {
+        fun findByThreadId(threadId: ThreadId): PageContent? {
             return find("threadId", threadId).firstResult()
         }
 

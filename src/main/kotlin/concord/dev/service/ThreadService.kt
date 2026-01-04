@@ -1,12 +1,13 @@
 package concord.dev.service
 
-import concord.dev.domain.CrawlStatus
-import concord.dev.domain.Thread
+import concord.dev.domain.*
 import concord.dev.util.URLNormalizer
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
+import jakarta.transaction.TransactionSynchronizationRegistry
+import jakarta.transaction.Synchronization
+import jakarta.transaction.Status
 import java.time.Instant
-import java.util.UUID
 
 @ApplicationScoped
 class ThreadService(
@@ -14,9 +15,13 @@ class ThreadService(
     private val urlNormalizer: URLNormalizer
 ) {
 
+    @jakarta.inject.Inject
+    lateinit var tsr: TransactionSynchronizationRegistry
+
     @Transactional
     fun createOrGetThread(url: String, slug: String?): Thread {
-        val normalizedUrl = urlNormalizer.normalize(url) ?: url
+        val normalizedUrlString = urlNormalizer.normalize(url) ?: url
+        val normalizedUrl = Url(normalizedUrlString)
 
         val existing = Thread.findByUrl(normalizedUrl)
         if (existing != null) {
@@ -28,35 +33,47 @@ class ThreadService(
 
         val now = Instant.now()
         val thread = Thread().apply {
-            this.id = UUID.randomUUID()
+            this.id = ThreadId.random()
             this.url = normalizedUrl
             this.slug = slug
             this.createdAt = now
             this.updatedAt = now
-            this.postCount = 0
+            this.postCount = PostCount(0)
             this.crawlStatus = CrawlStatus.PENDING
         }
 
         thread.persist()
 
-        kafkaProducer.sendUrlCrawlRequest(thread.id, normalizedUrl)
+        // After successful commit, emit crawl request to avoid dual-write inconsistencies
+        val createdThreadId = thread.id
+        val createdThreadUrl = thread.url!!
+        tsr.registerInterposedSynchronization(object : Synchronization {
+            override fun beforeCompletion() {}
+            override fun afterCompletion(status: Int) {
+                if (status == Status.STATUS_COMMITTED) {
+                    // Safe to emit now
+                    kafkaProducer.sendUrlCrawlRequest(createdThreadId, createdThreadUrl)
+                }
+            }
+        })
 
         return thread
     }
 
-    fun getThread(threadId: UUID): Thread? {
+    fun getThread(threadId: ThreadId): Thread? {
         return Thread.find("id", threadId).firstResult()
     }
 
     fun getThreadByUrl(url: String): Thread? {
-        val normalizedUrl = urlNormalizer.normalize(url) ?: url
+        val normalizedUrlString = urlNormalizer.normalize(url) ?: url
+        val normalizedUrl = Url(normalizedUrlString)
         return Thread.findByUrl(normalizedUrl)
     }
 
     @Transactional(Transactional.TxType.MANDATORY)
-    fun incrementPostCount(threadId: UUID) {
+    fun incrementPostCount(threadId: ThreadId) {
         val thread = Thread.find("id", threadId).firstResult() ?: throw IllegalArgumentException("Thread not found: $threadId")
-        thread.postCount++
+        thread.postCount = thread.postCount.inc()
         thread.updatedAt = Instant.now()
         thread.persist()
     }

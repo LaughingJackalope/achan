@@ -6,7 +6,6 @@ import jakarta.persistence.*
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.time.Instant
-import java.util.UUID
 
 @Entity
 @Table(
@@ -17,41 +16,46 @@ class Post : PanacheEntityBase {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    var id: Long? = null
+    @Convert(converter = PostIdConverter::class)
+    var id: PostId? = null
 
     @Column(name = "thread_id", nullable = false, columnDefinition = "UUID")
-    lateinit var threadId: UUID
+    @Convert(converter = ThreadIdConverter::class)
+    var threadId: ThreadId? = null
 
     @Column(name = "parent_post_id")
-    var parentPostId: Long? = null
+    @Convert(converter = PostIdConverter::class)
+    var parentPostId: PostId? = null
 
     @Column(nullable = false, columnDefinition = "TEXT")
-    lateinit var content: String
+    @Convert(converter = ContentConverter::class)
+    var content: Content? = null
 
     @Column(name = "posted_at", nullable = false)
     var postedAt: Instant = Instant.now()
 
     @Column(name = "post_number", nullable = false)
-    var postNumber: Int = 0
+    @Convert(converter = PostNumberConverter::class)
+    var postNumber: PostNumber = PostNumber(1)
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
     var metadata: String? = null
 
     companion object : PanacheCompanion<Post> {
-        fun findByThreadId(threadId: UUID, limit: Int = 50, offset: Int = 0): List<Post> {
+        fun findByThreadId(threadId: ThreadId, size: Int = 50, page: Int = 0): List<Post> {
             return find("threadId = ?1 ORDER BY postNumber ASC", threadId)
-                .page(offset / limit, limit)
+                .page(page, size)
                 .list()
         }
 
-        fun countByThreadId(threadId: UUID): Long {
+        fun countByThreadId(threadId: ThreadId): Long {
             return count("threadId", threadId)
         }
 
-        fun findByThreadIdAndParentId(threadId: UUID, parentId: Long, limit: Int = 50, offset: Int = 0): List<Post> {
+        fun findByThreadIdAndParentId(threadId: ThreadId, parentId: PostId, size: Int = 50, page: Int = 0): List<Post> {
             return find("threadId = ?1 AND parentPostId = ?2 ORDER BY postNumber ASC", threadId, parentId)
-                .page(offset / limit, limit)
+                .page(page, size)
                 .list()
         }
     }

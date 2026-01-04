@@ -56,7 +56,7 @@ class CrawlConsumer(
 
             // Store the content
             pageContentService.storeContent(
-                threadId = threadId,
+                threadId = concord.dev.domain.ThreadId(threadId),
                 url = result.url,
                 title = result.title,
                 description = result.description,

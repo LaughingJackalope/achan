@@ -14,7 +14,8 @@ class PageContentResource(
 ) {
 
     @GET
-    fun getContent(@PathParam("threadId") threadId: UUID): Response {
+    fun getContent(@PathParam("threadId") threadIdString: String): Response {
+        val threadId = concord.dev.domain.ThreadId(java.util.UUID.fromString(threadIdString))
         val content = pageContentService.getContent(threadId)
             ?: return Response.status(Response.Status.NOT_FOUND)
                 .entity(mapOf("error" to "No content found for this thread"))
@@ -25,7 +26,8 @@ class PageContentResource(
 
     @GET
     @Path("/raw-html")
-    fun getRawHtml(@PathParam("threadId") threadId: UUID): Response {
+    fun getRawHtml(@PathParam("threadId") threadIdString: String): Response {
+        val threadId = concord.dev.domain.ThreadId(java.util.UUID.fromString(threadIdString))
         val content = pageContentService.getContent(threadId)
             ?: return Response.status(Response.Status.NOT_FOUND)
                 .entity(mapOf("error" to "No content found for this thread"))

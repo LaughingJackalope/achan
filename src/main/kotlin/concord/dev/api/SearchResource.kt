@@ -61,7 +61,7 @@ class SearchResource(
     @GET
     @Path("/similar/{threadId}")
     fun findSimilar(
-        @PathParam("threadId") threadId: UUID,
+        @PathParam("threadId") threadIdString: String,
         @QueryParam("limit") @DefaultValue("5") limit: Int,
         @QueryParam("threshold") @DefaultValue("0.7") threshold: Double
     ): SimilarThreadsResponse {
@@ -73,10 +73,11 @@ class SearchResource(
             throw BadRequestException("Threshold must be between 0.0 and 1.0")
         }
 
+        val threadId = concord.dev.domain.ThreadId(java.util.UUID.fromString(threadIdString))
         val results = searchService.findSimilarThreads(threadId, limit, threshold)
 
         return SimilarThreadsResponse(
-            threadId = threadId,
+            threadId = threadId.value,
             similarThreads = results.map { result ->
                 SearchResultDto(
                     threadId = result.threadId,

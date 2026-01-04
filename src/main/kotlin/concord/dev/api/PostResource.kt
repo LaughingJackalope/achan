@@ -3,10 +3,13 @@ package concord.dev.api
 import concord.dev.api.dto.CreatePostRequest
 import concord.dev.api.dto.PostListResponse
 import concord.dev.api.dto.PostResponse
+import concord.dev.domain.PostId
+import concord.dev.domain.ThreadId
 import concord.dev.service.PostService
 import jakarta.ws.rs.*
 import jakarta.ws.rs.core.MediaType
 import jakarta.ws.rs.core.Response
+import jakarta.validation.Valid
 import java.util.UUID
 
 @Path("/api/v1/threads/{threadId}/posts")
@@ -18,16 +21,19 @@ class PostResource(
 
     @POST
     fun createPost(
-        @PathParam("threadId") threadId: UUID,
-        request: CreatePostRequest
+        @PathParam("threadId") threadIdString: String,
+        @Valid request: CreatePostRequest
     ): Response {
         // TODO: Extract metadata from request context (IP hash, user agent, session token)
         val metadata: String? = null
 
+        val threadId = ThreadId(UUID.fromString(threadIdString))
+        val parentPostId = request.parentPostId?.let { PostId(it) }
+
         val post = postService.createPost(
             threadId = threadId,
             content = request.content,
-            parentPostId = request.parentPostId,
+            parentPostId = parentPostId,
             metadata = metadata
         )
 
@@ -38,20 +44,23 @@ class PostResource(
 
     @GET
     fun getPosts(
-        @PathParam("threadId") threadId: UUID,
-        @QueryParam("limit") @DefaultValue("50") limit: Int,
-        @QueryParam("offset") @DefaultValue("0") offset: Int,
+        @PathParam("threadId") threadIdString: String,
+        @QueryParam("size") @DefaultValue("50") size: Int,
+        @QueryParam("page") @DefaultValue("0") page: Int,
         @QueryParam("parent_id") parentId: Long?
     ): Response {
         // Validate pagination params
-        val validatedLimit = limit.coerceIn(1, 500)
-        val validatedOffset = offset.coerceAtLeast(0)
+        val validatedSize = size.coerceIn(1, 500)
+        val validatedPage = page.coerceAtLeast(0)
+
+        val threadId = ThreadId(UUID.fromString(threadIdString))
+        val parentPostId = parentId?.let { PostId(it) }
 
         val posts = postService.getPosts(
             threadId = threadId,
-            limit = validatedLimit,
-            offset = validatedOffset,
-            parentId = parentId
+            size = validatedSize,
+            page = validatedPage,
+            parentId = parentPostId
         )
 
         val total = postService.getPostCount(threadId)
@@ -59,8 +68,8 @@ class PostResource(
         val response = PostListResponse(
             posts = posts.map { PostResponse.from(it) },
             total = total,
-            limit = validatedLimit,
-            offset = validatedOffset
+            size = validatedSize,
+            page = validatedPage
         )
 
         return Response.ok(response).build()

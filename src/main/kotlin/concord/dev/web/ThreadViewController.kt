@@ -1,10 +1,12 @@
 package concord.dev.web
 
+import concord.dev.domain.ThreadId
 import concord.dev.service.PageContentService
 import concord.dev.service.PostService
 import concord.dev.service.ThreadService
 import jakarta.ws.rs.*
 import jakarta.ws.rs.core.MediaType
+import java.util.UUID
 
 @Path("/achan")
 @Produces(MediaType.TEXT_HTML)
@@ -21,14 +23,15 @@ class ThreadViewController(
     @GET
     @Path("/t/{threadId}")
     fun viewThreadById(
-        @PathParam("threadId") threadId: java.util.UUID,
+        @PathParam("threadId") threadIdString: String,
         @QueryParam("theme") theme: String?
     ): String {
+        val threadId = ThreadId(UUID.fromString(threadIdString))
         val thread = threadService.getThread(threadId)
             ?: return renderError("Thread not found", theme)
 
         val content = pageContentService.getContent(thread.id)
-        val posts = postService.getPosts(thread.id, limit = 100, offset = 0)
+        val posts = postService.getPosts(thread.id, size = 100, page = 0)
 
         return renderThread(thread, content, posts, theme)
     }
@@ -50,7 +53,7 @@ class ThreadViewController(
             ?: return renderError("Thread not found for URL: $url", theme)
 
         val content = pageContentService.getContent(thread.id)
-        val posts = postService.getPosts(thread.id, limit = 100, offset = 0)
+        val posts = postService.getPosts(thread.id, size = 100, page = 0)
 
         return renderThread(thread, content, posts, theme)
     }

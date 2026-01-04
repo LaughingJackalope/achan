@@ -79,7 +79,7 @@ class SearchService(
      * Useful for "related content" features
      */
     fun findSimilarThreads(
-        threadId: UUID,
+        threadId: concord.dev.domain.ThreadId,
         limit: Int = 5,
         similarityThreshold: Double = 0.7
     ): List<SearchResult> {

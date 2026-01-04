@@ -2,6 +2,8 @@ package concord.dev.api
 
 import concord.dev.api.dto.CreateThreadRequest
 import concord.dev.api.dto.ThreadResponse
+import concord.dev.domain.PostCount
+import concord.dev.domain.ThreadId
 import concord.dev.service.ThreadService
 import jakarta.ws.rs.*
 import jakarta.ws.rs.core.MediaType
@@ -21,7 +23,7 @@ class ThreadResource(
         val response = ThreadResponse.from(thread)
 
         // Return 201 if newly created, 200 if existing
-        val status = if (thread.postCount == 0 && thread.createdAt == thread.updatedAt) {
+        val status = if (thread.postCount == PostCount(0) && thread.createdAt == thread.updatedAt) {
             Response.Status.CREATED
         } else {
             Response.Status.OK
@@ -32,7 +34,8 @@ class ThreadResource(
 
     @GET
     @Path("/{threadId}")
-    fun getThread(@PathParam("threadId") threadId: UUID): Response {
+    fun getThread(@PathParam("threadId") threadIdString: String): Response {
+        val threadId = ThreadId(UUID.fromString(threadIdString))
         val thread = threadService.getThread(threadId)
             ?: return Response.status(Response.Status.NOT_FOUND).build()
 

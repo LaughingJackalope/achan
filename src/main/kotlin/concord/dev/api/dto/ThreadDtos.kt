@@ -1,9 +1,7 @@
 package concord.dev.api.dto
 
-import concord.dev.domain.CrawlStatus
-import concord.dev.domain.Thread
+import concord.dev.domain.*
 import java.time.Instant
-import java.util.UUID
 
 data class CreateThreadRequest(
     val url: String,
@@ -11,19 +9,19 @@ data class CreateThreadRequest(
 )
 
 data class ThreadResponse(
-    val threadId: UUID,
-    val url: String,
+    val threadId: ThreadId,
+    val url: Url,
     val slug: String?,
     val createdAt: Instant,
     val updatedAt: Instant,
-    val postCount: Int,
+    val postCount: PostCount,
     val crawlStatus: CrawlStatus,
     val metadata: String?
 ) {
     companion object {
         fun from(thread: Thread) = ThreadResponse(
             threadId = thread.id,
-            url = thread.url,
+            url = thread.url!!,
             slug = thread.slug,
             createdAt = thread.createdAt,
             updatedAt = thread.updatedAt,

@@ -48,7 +48,8 @@ class AIEnrichmentConsumer(
             threadId = request.threadId
             log.info("Processing AI enrichment for thread ${request.threadId}")
 
-            val pageContent = PageContent.findByThreadId(request.threadId)
+            val threadIdValue = concord.dev.domain.ThreadId(request.threadId)
+            val pageContent = PageContent.findByThreadId(threadIdValue)
             if (pageContent == null) {
                 log.warn("Page content not found for thread ${request.threadId}, skipping enrichment")
                 return
