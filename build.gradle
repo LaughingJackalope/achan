@@ -16,17 +16,21 @@ dependencies {
     implementation 'io.quarkus:quarkus-hibernate-orm-panache-kotlin'
     implementation 'io.quarkus:quarkus-jdbc-postgresql'
     implementation 'io.quarkus:quarkus-flyway'
+    implementation 'com.pgvector:pgvector:0.1.6'
 
     // REST API
     implementation 'io.quarkus:quarkus-rest'
     implementation 'io.quarkus:quarkus-rest-jackson'
     implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
+    implementation 'io.quarkus:quarkus-rest-qute'
 
     // Messaging
     implementation 'io.quarkus:quarkus-kafka-client'
+    implementation 'io.quarkus:quarkus-messaging-kafka'
 
     // Content Processing
     implementation 'org.commonmark:commonmark:0.22.0'
+    implementation 'org.jsoup:jsoup:1.18.3'
 
     // Observability & Config
     implementation 'io.quarkus:quarkus-opentelemetry'
@@ -35,6 +39,9 @@ dependencies {
     implementation 'io.quarkus:quarkus-logging-json'
     implementation 'io.quarkus:quarkus-kubernetes-config'
     implementation 'io.quarkus:quarkus-kubernetes'
+
+    // Scheduling
+    implementation 'io.quarkus:quarkus-scheduler'
 
     // Kotlin
     implementation 'org.jetbrains.kotlin:kotlin-stdlib-jdk8'

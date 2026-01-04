@@ -42,3 +42,43 @@ kafka:
     servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
   topic:
     url-crawl-requests: ${KAFKA_TOPIC_URL_CRAWL:url-crawl-requests}
+    ai-enrichment-requests: ${KAFKA_TOPIC_AI_ENRICHMENT:ai-enrichment-requests}
+
+# Reactive Messaging (Kafka Consumer/Producer)
+mp:
+  messaging:
+    incoming:
+      url-crawl-requests:
+        connector: smallrye-kafka
+        topic: ${kafka.topic.url-crawl-requests}
+        bootstrap.servers: ${kafka.bootstrap.servers}
+        group.id: achan-crawler
+        auto.offset.reset: earliest
+        enable.auto.commit: true
+        key.deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value.deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+      ai-enrichment-requests:
+        connector: smallrye-kafka
+        topic: ${kafka.topic.ai-enrichment-requests}
+        bootstrap.servers: ${kafka.bootstrap.servers}
+        group.id: achan
+        auto.offset.reset: earliest
+        enable.auto.commit: true
+        key.deserializer: org.apache.kafka.common.serialization.StringDeserializer
+        value.deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+    outgoing:
+      url-crawl-out:
+        connector: smallrye-kafka
+        topic: ${kafka.topic.url-crawl-requests}
+        bootstrap.servers: ${kafka.bootstrap.servers}
+        key.serializer: org.apache.kafka.common.serialization.StringSerializer
+        value.serializer: org.apache.kafka.common.serialization.StringSerializer
+
+      ai-enrichment-out:
+        connector: smallrye-kafka
+        topic: ${kafka.topic.ai-enrichment-requests}
+        bootstrap.servers: ${kafka.bootstrap.servers}
+        key.serializer: org.apache.kafka.common.serialization.StringSerializer
+        value.serializer: org.apache.kafka.common.serialization.StringSerializer

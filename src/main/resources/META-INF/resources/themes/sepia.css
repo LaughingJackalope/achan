@@ -1,0 +1,17 @@
+/**
+ * Sepia Theme
+ * Warm, paper-like, easy on the eyes
+ */
+
+:root {
+    --color-text: #3a2f26;
+    --color-text-secondary: #7a6f66;
+    --color-background: #f4ecd8;
+    --color-border: #d4c4a8;
+    --color-link: #1a4d8f;
+    --color-link-visited: #6f3a6f;
+}
+
+pre {
+    background-color: #ebe1cc !important;
+}
