@@ -128,6 +128,8 @@ When running `./gradlew quarkusDev`, the `dev` profile is automatically activate
 - OpenTelemetry disabled (to avoid warning logs about missing OTEL collector)
 - Verbose logging for `concord.dev` package
 
+**Note:** Kubernetes extensions (`quarkus-kubernetes` and `quarkus-kubernetes-config`) are commented out in `build.gradle` for local development. Uncomment them when preparing for Kubernetes deployment.
+
 ### Enabling OpenTelemetry
 If you want distributed tracing in local development:
 
