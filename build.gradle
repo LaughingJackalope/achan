@@ -2,6 +2,7 @@ plugins {
     id 'org.jetbrains.kotlin.jvm' version "2.2.20"
     id "org.jetbrains.kotlin.plugin.allopen" version "2.2.20"
     id 'io.quarkus'
+    id 'org.jetbrains.dokka' version '1.9.20'
 }
 
 repositories {
@@ -23,10 +24,17 @@ dependencies {
     implementation 'io.quarkus:quarkus-rest-jackson'
     implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
     implementation 'io.quarkus:quarkus-rest-qute'
+    implementation 'io.quarkus:quarkus-websockets'
+
+    // Validation
+    implementation 'io.quarkus:quarkus-hibernate-validator'
 
     // Messaging
     implementation 'io.quarkus:quarkus-kafka-client'
     implementation 'io.quarkus:quarkus-messaging-kafka'
+
+    // Redis
+    implementation 'io.quarkus:quarkus-redis-client'
 
     // Content Processing
     implementation 'org.commonmark:commonmark:0.22.0'
@@ -94,4 +102,34 @@ compileKotlin {
 
 compileTestKotlin {
     kotlinOptions.jvmTarget = JavaVersion.VERSION_21
+}
+
+tasks.named('dokkaHtml') {
+    outputDirectory.set(file("$buildDir/dokka"))
+    
+    dokkaSourceSets {
+        named("main") {
+            moduleName.set("Achan")
+            
+            // Include all source directories
+            sourceRoots.from(files("src/main/kotlin"))
+            
+            // Display inherited members
+            skipEmptyPackages.set(true)
+            
+            // Add source links
+            sourceLink {
+                localDirectory.set(file("src/main/kotlin"))
+                remoteUrl.set(uri("https://github.com/yourusername/achan/tree/main/src/main/kotlin").toURL())
+                remoteLineSuffix = "#L"
+            }
+        }
+    }
+}
+
+tasks.register('documentation') {
+    dependsOn 'dokkaHtml'
+    doLast {
+        println("Documentation generated at: ${file("$buildDir/dokka/index.html").toURI()}")
+    }
 }

@@ -35,7 +35,7 @@ class PostResourceTest {
         concord.dev.domain.Thread.deleteAll()
     }
 
-    private fun createTestThread(): UUID {
+    private fun createTestThread(): concord.dev.domain.ThreadId {
         // Create a test thread for post tests
         val threadResponse = given()
             .contentType(ContentType.JSON)
@@ -73,7 +73,7 @@ class PostResourceTest {
 
         // Verify post ID is assigned
         assertNotNull(response.postId)
-        assertTrue(response.postId > 0)
+        assertTrue(response.postId.value > 0)
     }
 
     @Test
@@ -94,7 +94,7 @@ class PostResourceTest {
         // Create reply
         val replyRequest = CreatePostRequest(
             content = "Reply to parent",
-            parentPostId = parent.postId
+            parentPostId = parent.postId.value
         )
         given()
             .contentType(ContentType.JSON)
@@ -103,7 +103,7 @@ class PostResourceTest {
             .then()
             .statusCode(201)
             .body("content", equalTo("Reply to parent"))
-            .body("parentPostId", equalTo(parent.postId.toInt()))
+            .body("parentPostId", equalTo(parent.postId.value.toInt()))
             .body("postNumber", equalTo(2))
     }
 
@@ -170,7 +170,7 @@ class PostResourceTest {
         latch.countDown()
 
         // Wait for all posts to complete
-        val postNumbers = futures.mapNotNull { it.join() }.sorted()
+        val postNumbers = futures.mapNotNull { it.join() }?.sorted() ?: emptyList()
 
         // Verify all successful posts have unique and sequential post numbers
         // At least some posts should succeed (SERIALIZABLE isolation may cause some to fail)
@@ -204,8 +204,8 @@ class PostResourceTest {
             .statusCode(200)
             .contentType(ContentType.JSON)
             .body("total", equalTo(3))
-            .body("limit", equalTo(50))
-            .body("offset", equalTo(0))
+            .body("size", equalTo(50))
+            .body("page", equalTo(0))
             .body("posts.size()", equalTo(3))
             .extract()
             .`as`(PostListResponse::class.java)
@@ -230,26 +230,26 @@ class PostResourceTest {
                 .statusCode(201)
         }
 
-        // Get first page (limit=3, offset=0)
+        // Get first page (size=3, page=0)
         val page1 = given()
-            .queryParam("limit", 3)
-            .queryParam("offset", 0)
+            .queryParam("size", 3)
+            .queryParam("page", 0)
             .get("/api/v1/threads/$testThreadId/posts")
             .then()
             .statusCode(200)
             .body("posts.size()", equalTo(3))
             .body("total", equalTo(10))
-            .body("limit", equalTo(3))
-            .body("offset", equalTo(0))
+            .body("size", equalTo(3))
+            .body("page", equalTo(0))
             .extract()
             .`as`(PostListResponse::class.java)
 
         assertEquals(listOf(1, 2, 3), page1.posts.map { it.postNumber })
 
-        // Get second page (limit=3, offset=3)
+        // Get second page (size=3, page=1)
         val page2 = given()
-            .queryParam("limit", 3)
-            .queryParam("offset", 3)
+            .queryParam("size", 3)
+            .queryParam("page", 1)
             .get("/api/v1/threads/$testThreadId/posts")
             .then()
             .statusCode(200)
@@ -260,10 +260,10 @@ class PostResourceTest {
 
         assertEquals(listOf(4, 5, 6), page2.posts.map { it.postNumber })
 
-        // Get third page (limit=3, offset=6)
+        // Get third page (size=3, page=2)
         val page3 = given()
-            .queryParam("limit", 3)
-            .queryParam("offset", 6)
+            .queryParam("size", 3)
+            .queryParam("page", 2)
             .get("/api/v1/threads/$testThreadId/posts")
             .then()
             .statusCode(200)
@@ -273,10 +273,10 @@ class PostResourceTest {
 
         assertEquals(listOf(7, 8, 9), page3.posts.map { it.postNumber })
 
-        // Get last page (limit=3, offset=9)
+        // Get last page (size=3, page=3)
         val page4 = given()
-            .queryParam("limit", 3)
-            .queryParam("offset", 9)
+            .queryParam("size", 3)
+            .queryParam("page", 3)
             .get("/api/v1/threads/$testThreadId/posts")
             .then()
             .statusCode(200)
@@ -307,33 +307,33 @@ class PostResourceTest {
             .get("/api/v1/threads/$testThreadId/posts")
             .then()
             .statusCode(200)
-            .body("limit", equalTo(50)) // default limit
-            .body("offset", equalTo(0))  // default offset
+            .body("size", equalTo(50)) // default size
+            .body("page", equalTo(0))  // default page
             .body("posts.size()", equalTo(3))
     }
 
     @Test
-    fun `GET posts - limit is capped at 500`() {
+    fun `GET posts - size is capped at 500`() {
         val testThreadId = createTestThread()
 
         given()
-            .queryParam("limit", 1000)
+            .queryParam("size", 1000)
             .get("/api/v1/threads/$testThreadId/posts")
             .then()
             .statusCode(200)
-            .body("limit", equalTo(500)) // should be capped
+            .body("size", equalTo(500)) // should be capped
     }
 
     @Test
-    fun `GET posts - negative offset is coerced to 0`() {
+    fun `GET posts - negative page is coerced to 0`() {
         val testThreadId = createTestThread()
 
         given()
-            .queryParam("offset", -10)
+            .queryParam("page", -10)
             .get("/api/v1/threads/$testThreadId/posts")
             .then()
             .statusCode(200)
-            .body("offset", equalTo(0)) // should be coerced
+            .body("page", equalTo(0)) // should be coerced
     }
 
     @Test

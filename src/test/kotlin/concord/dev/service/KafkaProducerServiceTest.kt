@@ -2,33 +2,30 @@ package concord.dev.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
+import concord.dev.domain.ThreadId
 import io.mockk.*
-import org.apache.kafka.clients.producer.Callback
-import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.clients.producer.ProducerRecord
-import org.apache.kafka.clients.producer.RecordMetadata
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata
+import org.eclipse.microprofile.reactive.messaging.Emitter
+import org.eclipse.microprofile.reactive.messaging.Message
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import java.time.Instant
-import java.util.UUID
-import java.util.concurrent.Future
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 class KafkaProducerServiceTest {
 
-    private lateinit var mockProducer: KafkaProducer<String, String>
+    private lateinit var emitter: Emitter<String>
     private lateinit var objectMapper: ObjectMapper
     private lateinit var service: KafkaProducerService
 
-    private val topic = "test-url-crawl-requests"
-
     @BeforeEach
     fun setup() {
-        mockProducer = mockk<KafkaProducer<String, String>>(relaxed = true)
+        emitter = mockk(relaxed = true)
         objectMapper = ObjectMapper().registerModule(KotlinModule.Builder().build())
-        service = KafkaProducerService(topic, mockProducer, objectMapper)
+        service = KafkaProducerService(emitter, objectMapper)
     }
 
     @AfterEach
@@ -37,44 +34,39 @@ class KafkaProducerServiceTest {
     }
 
     @Test
-    fun `sendUrlCrawlRequest - sends message to Kafka with correct topic and key`() {
-        val threadId = UUID.randomUUID()
+    fun `sendUrlCrawlRequest - sends message with correct key metadata`() {
+        val threadId = ThreadId.random()
         val url = "https://example.com/article"
 
-        val recordSlot = slot<ProducerRecord<String, String>>()
-        val callbackSlot = slot<Callback>()
-
-        // Mock the send method
-        every {
-            mockProducer.send(capture(recordSlot), capture(callbackSlot))
-        } returns mockk<Future<RecordMetadata>>(relaxed = true)
+        val msgSlot = slot<Message<String>>()
+        every { emitter.send(capture(msgSlot)) } just Runs
 
         service.sendUrlCrawlRequest(threadId, url)
 
         // Verify send was called
-        verify(exactly = 1) { mockProducer.send(any(), any()) }
+        verify(exactly = 1) { emitter.send(any<Message<String>>()) }
 
-        // Verify the record
-        val capturedRecord = recordSlot.captured
-        assertEquals(topic, capturedRecord.topic())
-        assertEquals(threadId.toString(), capturedRecord.key())
+        // Verify key metadata
+        val captured = msgSlot.captured
+        val metaRaw = captured.getMetadata(OutgoingKafkaRecordMetadata::class.java).orElse(null)
+        assertNotNull(metaRaw)
+        @Suppress("UNCHECKED_CAST")
+        val meta = metaRaw as OutgoingKafkaRecordMetadata<String>
+        assertEquals(threadId.toString(), meta.key)
     }
 
     @Test
     fun `sendUrlCrawlRequest - message contains correct JSON structure`() {
-        val threadId = UUID.randomUUID()
+        val threadId = ThreadId.random()
         val url = "https://example.com/test"
 
-        val recordSlot = slot<ProducerRecord<String, String>>()
-
-        every {
-            mockProducer.send(capture(recordSlot), any())
-        } returns mockk<Future<RecordMetadata>>(relaxed = true)
+        val msgSlot = slot<Message<String>>()
+        every { emitter.send(capture(msgSlot)) } just Runs
 
         service.sendUrlCrawlRequest(threadId, url)
 
-        val capturedRecord = recordSlot.captured
-        val messageJson = capturedRecord.value()
+        val captured = msgSlot.captured
+        val messageJson = captured.payload
 
         // Parse the JSON message
         val messageMap = objectMapper.readValue(messageJson, Map::class.java)
@@ -89,64 +81,30 @@ class KafkaProducerServiceTest {
     }
 
     @Test
-    fun `sendUrlCrawlRequest - callback handles success`() {
-        val threadId = UUID.randomUUID()
-        val url = "https://example.com/success"
-
-        val callbackSlot = slot<Callback>()
-
-        every {
-            mockProducer.send(any(), capture(callbackSlot))
-        } answers {
-            // Simulate successful send by invoking callback with metadata and no exception
-            val callback = callbackSlot.captured
-            callback.onCompletion(mockk<RecordMetadata>(relaxed = true), null)
-            mockk<Future<RecordMetadata>>(relaxed = true)
-        }
-
-        // Should not throw
-        service.sendUrlCrawlRequest(threadId, url)
-
-        verify(exactly = 1) { mockProducer.send(any(), any()) }
-    }
-
-    @Test
-    fun `sendUrlCrawlRequest - callback handles error gracefully`() {
-        val threadId = UUID.randomUUID()
+    fun `sendUrlCrawlRequest - handles emitter errors gracefully`() {
+        val threadId = ThreadId.random()
         val url = "https://example.com/error"
 
-        val callbackSlot = slot<Callback>()
+        every { emitter.send(any<Message<String>>()) } throws RuntimeException("Kafka send failed")
 
-        every {
-            mockProducer.send(any(), capture(callbackSlot))
-        } answers {
-            // Simulate error by invoking callback with exception
-            val callback = callbackSlot.captured
-            callback.onCompletion(null, RuntimeException("Kafka send failed"))
-            mockk<Future<RecordMetadata>>(relaxed = true)
-        }
-
-        // Should not throw - errors are logged but not propagated
+        // Should not throw - service catches and logs
         service.sendUrlCrawlRequest(threadId, url)
 
-        verify(exactly = 1) { mockProducer.send(any(), any()) }
+        verify(exactly = 1) { emitter.send(any<Message<String>>()) }
     }
 
     @Test
     fun `sendUrlCrawlRequest - handles special characters in URL`() {
-        val threadId = UUID.randomUUID()
+        val threadId = ThreadId.random()
         val url = "https://example.com/path?query=value&foo=bar#fragment"
 
-        val recordSlot = slot<ProducerRecord<String, String>>()
-
-        every {
-            mockProducer.send(capture(recordSlot), any())
-        } returns mockk<Future<RecordMetadata>>(relaxed = true)
+        val msgSlot = slot<Message<String>>()
+        every { emitter.send(capture(msgSlot)) } just Runs
 
         service.sendUrlCrawlRequest(threadId, url)
 
-        val capturedRecord = recordSlot.captured
-        val messageJson = capturedRecord.value()
+        val captured = msgSlot.captured
+        val messageJson = captured.payload
         val messageMap = objectMapper.readValue(messageJson, Map::class.java)
 
         assertEquals(url, messageMap["url"])
@@ -154,37 +112,34 @@ class KafkaProducerServiceTest {
 
     @Test
     fun `sendUrlCrawlRequest - handles multiple concurrent sends`() {
-        val threadId1 = UUID.randomUUID()
-        val threadId2 = UUID.randomUUID()
+        val threadId1 = ThreadId.random()
+        val threadId2 = ThreadId.random()
         val url1 = "https://example.com/first"
         val url2 = "https://example.com/second"
 
-        val recordSlots = mutableListOf<ProducerRecord<String, String>>()
-
-        every {
-            mockProducer.send(capture(recordSlots), any())
-        } returns mockk<Future<RecordMetadata>>(relaxed = true)
+        val messages = mutableListOf<Message<String>>()
+        every { emitter.send(capture(messages)) } just Runs
 
         service.sendUrlCrawlRequest(threadId1, url1)
         service.sendUrlCrawlRequest(threadId2, url2)
 
-        verify(exactly = 2) { mockProducer.send(any(), any()) }
-        assertEquals(2, recordSlots.size)
+        verify(exactly = 2) { emitter.send(any<Message<String>>()) }
+        assertEquals(2, messages.size)
 
         // Verify first message
-        val message1 = objectMapper.readValue(recordSlots[0].value(), Map::class.java)
+        val message1 = objectMapper.readValue(messages[0].payload, Map::class.java)
         assertEquals(threadId1.toString(), message1["threadId"])
         assertEquals(url1, message1["url"])
 
         // Verify second message
-        val message2 = objectMapper.readValue(recordSlots[1].value(), Map::class.java)
+        val message2 = objectMapper.readValue(messages[1].payload, Map::class.java)
         assertEquals(threadId2.toString(), message2["threadId"])
         assertEquals(url2, message2["url"])
     }
 
     @Test
     fun `UrlCrawlRequest - data class serializes correctly`() {
-        val threadId = UUID.randomUUID().toString()
+        val threadId = ThreadId.random().value.toString()
         val url = "https://example.com/test"
         val requestedAt = Instant.now().toString()
 

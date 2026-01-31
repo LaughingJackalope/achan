@@ -1,7 +1,6 @@
 package concord.dev.service
 
-import concord.dev.domain.Post
-import concord.dev.domain.Thread
+import concord.dev.domain.*
 import io.mockk.*
 import io.quarkus.test.junit.QuarkusTest
 import jakarta.inject.Inject
@@ -10,7 +9,6 @@ import jakarta.transaction.Transactional
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
-import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
@@ -38,17 +36,18 @@ class PostServiceTest {
         clearAllMocks()
     }
 
-    private fun createTestThread(): UUID {
+    private fun createTestThread(): ThreadId {
+        val threadId = ThreadId.random()
         val thread = Thread().apply {
-            this.id = UUID.randomUUID()
-            this.url = "https://example.com/test-thread-${UUID.randomUUID()}"
+            this.id = threadId.value
+            this.url = "https://example.com/test-thread-${this.id}"
             this.postCount = 0
             this.createdAt = java.time.Instant.now()
             this.updatedAt = java.time.Instant.now()
-            this.crawlStatus = concord.dev.domain.CrawlStatus.PENDING
+            this.crawlStatus = CrawlStatus.PENDING
         }
         thread.persist()
-        return thread.id
+        return threadId
     }
 
     @Test
@@ -64,7 +63,7 @@ class PostServiceTest {
 
         assertNotNull(post)
         assertNotNull(post.id)
-        assertEquals(threadId, post.threadId)
+        assertEquals(threadId.value, post.threadId)
         assertEquals("Test post content", post.content)
         assertEquals(1, post.postNumber)
         assertNotNull(post.postedAt)
@@ -101,11 +100,11 @@ class PostServiceTest {
         val replyPost = service.createPost(
             threadId = threadId,
             content = "Reply to parent",
-            parentPostId = parentPost.id
+            parentPostId = parentPost.id?.let { PostId(it) }
         )
 
         assertNotNull(replyPost)
-        assertEquals(parentPost.id, replyPost.parentPostId)
+        assertEquals(parentPost.id?.let { PostId(it) }, replyPost.parentPostId)
         assertEquals(2, replyPost.postNumber)
     }
 
@@ -147,7 +146,7 @@ class PostServiceTest {
 
     @Test
     @Transactional
-    fun `getPosts - respects limit parameter`() {
+    fun `getPosts - respects size parameter`() {
         val threadId = createTestThread()
         val service = PostService(entityManager, mockThreadService)
 
@@ -155,14 +154,14 @@ class PostServiceTest {
             service.createPost(threadId, "Post ${i + 1}")
         }
 
-        val posts = service.getPosts(threadId, limit = 3)
+        val posts = service.getPosts(threadId, size = 3)
 
         assertEquals(3, posts.size)
     }
 
     @Test
     @Transactional
-    fun `getPosts - respects offset parameter`() {
+    fun `getPosts - respects page parameter`() {
         val threadId = createTestThread()
         val service = PostService(entityManager, mockThreadService)
 
@@ -170,7 +169,7 @@ class PostServiceTest {
             service.createPost(threadId, "Post ${i + 1}")
         }
 
-        val posts = service.getPosts(threadId, limit = 5, offset = 5)
+        val posts = service.getPosts(threadId, size = 5, page = 1)
 
         assertEquals(5, posts.size)
         assertEquals(6, posts[0].postNumber)
@@ -185,10 +184,10 @@ class PostServiceTest {
 
         val parentPost = service.createPost(threadId, "Parent post")
         service.createPost(threadId, "Other post")
-        val reply1 = service.createPost(threadId, "Reply 1", parentPostId = parentPost.id)
-        val reply2 = service.createPost(threadId, "Reply 2", parentPostId = parentPost.id)
+        val reply1 = service.createPost(threadId, "Reply 1", parentPostId = parentPost.id?.let { PostId(it) })
+        val reply2 = service.createPost(threadId, "Reply 2", parentPostId = parentPost.id?.let { PostId(it) })
 
-        val replies = service.getPosts(threadId, parentId = parentPost.id)
+        val replies = service.getPosts(threadId, parentId = parentPost.id?.let { PostId(it) })
 
         assertEquals(2, replies.size)
         assertEquals(reply1.id, replies[0].id)
@@ -221,13 +220,13 @@ class PostServiceTest {
 
         // Create posts directly via Panache to test the count function
         val post1 = Post().apply {
-            this.threadId = threadId
+            this.threadId = threadId.value
             this.content = "Test 1"
             this.postNumber = 1
             this.postedAt = java.time.Instant.now()
         }
         val post2 = Post().apply {
-            this.threadId = threadId
+            this.threadId = threadId.value
             this.content = "Test 2"
             this.postNumber = 2
             this.postedAt = java.time.Instant.now()
@@ -264,7 +263,7 @@ class PostServiceTest {
 
         assertEquals(2, thread1Posts.size)
         assertEquals(1, thread2Posts.size)
-        assertEquals(threadId1, thread1Posts[0].threadId)
-        assertEquals(threadId2, thread2Posts[0].threadId)
+        assertEquals(threadId1.value, thread1Posts[0].threadId)
+        assertEquals(threadId2.value, thread2Posts[0].threadId)
     }
 }

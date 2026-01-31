@@ -1,11 +1,11 @@
 package concord.dev.api.dto
 
 import concord.dev.domain.PageContent
+import concord.dev.domain.ThreadId
 import java.time.Instant
-import java.util.UUID
 
 data class PageContentResponse(
-    val threadId: UUID,
+    val threadId: ThreadId,
     val url: String,
     val title: String?,
     val description: String?,
@@ -19,7 +19,7 @@ data class PageContentResponse(
 ) {
     companion object {
         fun from(content: PageContent) = PageContentResponse(
-            threadId = content.threadId,
+            threadId = content.threadId!!,
             url = content.url,
             title = content.title,
             description = content.description,

@@ -1,19 +1,16 @@
 package concord.dev.service
 
-import concord.dev.domain.CrawlStatus
-import concord.dev.domain.PageContent
-import concord.dev.domain.Thread
+import concord.dev.domain.*
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
 import java.time.Instant
-import java.util.UUID
 
 @ApplicationScoped
 class PageContentService {
 
     @Transactional
     fun storeContent(
-        threadId: UUID,
+        threadId: ThreadId,
         url: String,
         title: String?,
         description: String?,
@@ -71,19 +68,19 @@ class PageContentService {
     }
 
     @Transactional
-    fun getContent(threadId: UUID): PageContent? {
+    fun getContent(threadId: ThreadId): PageContent? {
         return PageContent.findByThreadId(threadId)
     }
 
     @Transactional
-    fun deleteContent(threadId: UUID): Boolean {
+    fun deleteContent(threadId: ThreadId): Boolean {
         val content = PageContent.findByThreadId(threadId) ?: return false
         content.delete()
         return true
     }
 
-    private fun updateThreadStatus(threadId: UUID, statusCode: Int) {
-        val thread = Thread.find("id", threadId).firstResult()
+    private fun updateThreadStatus(threadId: ThreadId, statusCode: Int) {
+        val thread = Thread.find("id", threadId.value).firstResult()
             ?: throw IllegalArgumentException("Thread not found: $threadId")
 
         thread.crawlStatus = when (statusCode) {
