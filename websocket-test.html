@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AChan WebSocket Test Client</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .input-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #555;
+        }
+        input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin-right: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        .disconnect-btn {
+            background-color: #f44336;
+        }
+        .disconnect-btn:hover {
+            background-color: #da190b;
+        }
+        .ping-btn {
+            background-color: #2196F3;
+        }
+        .ping-btn:hover {
+            background-color: #0b7dda;
+        }
+        #messages {
+            margin-top: 20px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background-color: #fafafa;
+            min-height: 200px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .message {
+            margin-bottom: 10px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+        .message.info {
+            background-color: #e3f2fd;
+            border-left: 4px solid #2196F3;
+        }
+        .message.success {
+            background-color: #e8f5e9;
+            border-left: 4px solid #4CAF50;
+        }
+        .message.error {
+            background-color: #ffebee;
+            border-left: 4px solid #f44336;
+        }
+        .timestamp {
+            color: #999;
+            font-size: 12px;
+        }
+        .status {
+            padding: 8px;
+            border-radius: 4px;
+            margin-bottom: 15px;
+            text-align: center;
+            font-weight: bold;
+        }
+        .status.connected {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .status.disconnected {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>AChan WebSocket Test Client</h1>
+        <p>Test the real-time cognitive response WebSocket endpoint</p>
+
+        <div id="status" class="status disconnected">Disconnected</div>
+
+        <div class="input-group">
+            <label for="intentId">Intent ID (UUID):</label>
+            <input type="text" id="intentId" placeholder="e.g., 550e8400-e29b-41d4-a716-446655440000" />
+            <small>Enter a UUID for a cognitive intent (or use a random one for testing)</small>
+        </div>
+
+        <div class="input-group">
+            <button id="connectBtn" onclick="connect()">Connect WebSocket</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled class="disconnect-btn">Disconnect</button>
+            <button id="pingBtn" onclick="sendPing()" disabled class="ping-btn">Send Ping</button>
+            <button onclick="generateRandomIntent()">Generate Random UUID</button>
+        </div>
+
+        <h3>Messages:</h3>
+        <div id="messages"></div>
+    </div>
+
+    <script>
+        let ws = null;
+
+        function addMessage(text, type = 'info') {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const timestamp = new Date().toLocaleTimeString();
+            messageDiv.innerHTML = `
+                <div class="timestamp">${timestamp}</div>
+                <div>${text}</div>
+            `;
+
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function updateStatus(connected) {
+            const statusDiv = document.getElementById('status');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            const pingBtn = document.getElementById('pingBtn');
+
+            if (connected) {
+                statusDiv.textContent = 'Connected';
+                statusDiv.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+                pingBtn.disabled = false;
+            } else {
+                statusDiv.textContent = 'Disconnected';
+                statusDiv.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+                pingBtn.disabled = true;
+            }
+        }
+
+        function connect() {
+            const intentId = document.getElementById('intentId').value.trim();
+
+            if (!intentId) {
+                addMessage('Please enter an Intent ID', 'error');
+                return;
+            }
+
+            // Validate UUID format
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(intentId)) {
+                addMessage('Invalid UUID format', 'error');
+                return;
+            }
+
+            const wsUrl = `ws://localhost:8080/v1/responses/subscribe/${intentId}`;
+            addMessage(`Connecting to ${wsUrl}...`, 'info');
+
+            try {
+                ws = new WebSocket(wsUrl);
+
+                ws.onopen = function(event) {
+                    addMessage('WebSocket connection established!', 'success');
+                    updateStatus(true);
+                };
+
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        if (data.type === 'subscribed') {
+                            addMessage(`Subscribed to intent ${data.intentId}. ${data.message}`, 'success');
+                        } else if (data.type === 'response') {
+                            addMessage(
+                                `<strong>Response Received!</strong><br>` +
+                                `Intent ID: ${data.intentId}<br>` +
+                                `Action: ${data.action}<br>` +
+                                `Object ID: ${data.objectId}<br>` +
+                                `Created At: ${data.createdAt}`,
+                                'success'
+                            );
+                        } else {
+                            addMessage(`Received: ${event.data}`, 'info');
+                        }
+                    } catch (e) {
+                        // Not JSON, might be pong
+                        addMessage(`Received: ${event.data}`, 'info');
+                    }
+                };
+
+                ws.onerror = function(error) {
+                    addMessage(`WebSocket error: ${error}`, 'error');
+                };
+
+                ws.onclose = function(event) {
+                    addMessage(`WebSocket closed: ${event.code} - ${event.reason || 'No reason provided'}`, 'info');
+                    updateStatus(false);
+                };
+
+            } catch (error) {
+                addMessage(`Failed to create WebSocket: ${error}`, 'error');
+            }
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+                ws = null;
+            }
+        }
+
+        function sendPing() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send('ping');
+                addMessage('Sent ping', 'info');
+            } else {
+                addMessage('WebSocket is not connected', 'error');
+            }
+        }
+
+        function generateRandomIntent() {
+            const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+            document.getElementById('intentId').value = uuid;
+            addMessage(`Generated random UUID: ${uuid}`, 'info');
+        }
+
+        // Initialize
+        updateStatus(false);
+        addMessage('WebSocket test client ready. Enter an Intent ID and click Connect.', 'info');
+    </script>
+</body>
+</html>

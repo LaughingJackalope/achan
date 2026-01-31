@@ -62,9 +62,9 @@ class ThreadServiceTest {
 
         assertNotNull(thread)
         assertNotNull(thread.id)
-        assertEquals(Url(url), thread.url)
+        assertEquals(url, thread.url)
         assertEquals(slug, thread.slug)
-        assertEquals(PostCount(0), thread.postCount)
+        assertEquals(0, thread.postCount)
         assertEquals(CrawlStatus.PENDING, thread.crawlStatus)
         assertNotNull(thread.createdAt)
         assertNotNull(thread.updatedAt)
@@ -73,7 +73,7 @@ class ThreadServiceTest {
         verify(exactly = 1) { mockUrlNormalizer.normalize(url) }
 
         // Verify Kafka message was sent
-        verify(exactly = 1) { mockKafkaProducer.sendUrlCrawlRequest(thread.id, Url(url)) }
+        verify(exactly = 1) { mockKafkaProducer.sendUrlCrawlRequest(ThreadId(thread.id), url) }
     }
 
     @Test
@@ -118,7 +118,7 @@ class ThreadServiceTest {
         service.tsr = immediateCommitTsr()
         val thread = service.createOrGetThread(originalUrl, null)
 
-        assertEquals(Url(normalizedUrl), thread.url)
+        assertEquals(normalizedUrl, thread.url)
         verify { mockUrlNormalizer.normalize(originalUrl) }
     }
 
@@ -154,7 +154,7 @@ class ThreadServiceTest {
         val thread = service.createOrGetThread(url, null)
 
         // Should fall back to original URL
-        assertEquals(Url(url), thread.url)
+        assertEquals(url, thread.url)
     }
 
     @Test
@@ -166,7 +166,7 @@ class ThreadServiceTest {
         val created = service.createOrGetThread("https://example.com/get-test", "get-by-id")
 
         // Retrieve by ID
-        val retrieved = service.getThread(created.id)
+        val retrieved = service.getThread(ThreadId(created.id))
 
         assertNotNull(retrieved)
         assertEquals(created.id, retrieved.id)
@@ -200,7 +200,7 @@ class ThreadServiceTest {
 
         assertNotNull(retrieved)
         assertEquals(created.id, retrieved.id)
-        assertEquals(Url(url), retrieved.url)
+        assertEquals(url, retrieved.url)
     }
 
     @Test
@@ -228,13 +228,13 @@ class ThreadServiceTest {
         java.lang.Thread.sleep(10)
 
         // Increment post count
-        service.incrementPostCount(thread.id)
+        service.incrementPostCount(ThreadId(thread.id))
 
         // Refresh thread from database
-        val updated = service.getThread(thread.id)
+        val updated = service.getThread(ThreadId(thread.id))
 
         assertNotNull(updated)
-        assertEquals(PostCount(initialCount.value + 1), updated.postCount)
+        assertEquals(initialCount + 1, updated.postCount)
         assert(updated.updatedAt > initialUpdatedAt)
     }
 

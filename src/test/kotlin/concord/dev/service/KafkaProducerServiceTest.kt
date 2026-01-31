@@ -3,7 +3,6 @@ package concord.dev.service
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.kotlin.KotlinModule
 import concord.dev.domain.ThreadId
-import concord.dev.domain.Url
 import io.mockk.*
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata
 import org.eclipse.microprofile.reactive.messaging.Emitter
@@ -37,7 +36,7 @@ class KafkaProducerServiceTest {
     @Test
     fun `sendUrlCrawlRequest - sends message with correct key metadata`() {
         val threadId = ThreadId.random()
-        val url = Url("https://example.com/article")
+        val url = "https://example.com/article"
 
         val msgSlot = slot<Message<String>>()
         every { emitter.send(capture(msgSlot)) } just Runs
@@ -59,7 +58,7 @@ class KafkaProducerServiceTest {
     @Test
     fun `sendUrlCrawlRequest - message contains correct JSON structure`() {
         val threadId = ThreadId.random()
-        val url = Url("https://example.com/test")
+        val url = "https://example.com/test"
 
         val msgSlot = slot<Message<String>>()
         every { emitter.send(capture(msgSlot)) } just Runs
@@ -73,7 +72,7 @@ class KafkaProducerServiceTest {
         val messageMap = objectMapper.readValue(messageJson, Map::class.java)
 
         assertEquals(threadId.toString(), messageMap["threadId"])
-        assertEquals(url.value, messageMap["url"])
+        assertEquals(url, messageMap["url"])
         assertTrue(messageMap.containsKey("requestedAt"))
 
         // Verify requestedAt is a valid ISO-8601 timestamp
@@ -84,7 +83,7 @@ class KafkaProducerServiceTest {
     @Test
     fun `sendUrlCrawlRequest - handles emitter errors gracefully`() {
         val threadId = ThreadId.random()
-        val url = Url("https://example.com/error")
+        val url = "https://example.com/error"
 
         every { emitter.send(any<Message<String>>()) } throws RuntimeException("Kafka send failed")
 
@@ -97,7 +96,7 @@ class KafkaProducerServiceTest {
     @Test
     fun `sendUrlCrawlRequest - handles special characters in URL`() {
         val threadId = ThreadId.random()
-        val url = Url("https://example.com/path?query=value&foo=bar#fragment")
+        val url = "https://example.com/path?query=value&foo=bar#fragment"
 
         val msgSlot = slot<Message<String>>()
         every { emitter.send(capture(msgSlot)) } just Runs
@@ -108,15 +107,15 @@ class KafkaProducerServiceTest {
         val messageJson = captured.payload
         val messageMap = objectMapper.readValue(messageJson, Map::class.java)
 
-        assertEquals(url.value, messageMap["url"])
+        assertEquals(url, messageMap["url"])
     }
 
     @Test
     fun `sendUrlCrawlRequest - handles multiple concurrent sends`() {
         val threadId1 = ThreadId.random()
         val threadId2 = ThreadId.random()
-        val url1 = Url("https://example.com/first")
-        val url2 = Url("https://example.com/second")
+        val url1 = "https://example.com/first"
+        val url2 = "https://example.com/second"
 
         val messages = mutableListOf<Message<String>>()
         every { emitter.send(capture(messages)) } just Runs
@@ -130,12 +129,12 @@ class KafkaProducerServiceTest {
         // Verify first message
         val message1 = objectMapper.readValue(messages[0].payload, Map::class.java)
         assertEquals(threadId1.toString(), message1["threadId"])
-        assertEquals(url1.value, message1["url"])
+        assertEquals(url1, message1["url"])
 
         // Verify second message
         val message2 = objectMapper.readValue(messages[1].payload, Map::class.java)
         assertEquals(threadId2.toString(), message2["threadId"])
-        assertEquals(url2.value, message2["url"])
+        assertEquals(url2, message2["url"])
     }
 
     @Test

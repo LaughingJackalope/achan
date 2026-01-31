@@ -13,7 +13,9 @@ class CognitiveEventProducerService(
     @Channel("context-materialized-out") private val contextMaterializedEmitter: Emitter<Record<UUID, ContextMaterialized>>,
     @Channel("act-proposed-out") private val actProposedEmitter: Emitter<Record<UUID, ActProposed>>,
     @Channel("act-committed-out") private val actCommittedEmitter: Emitter<Record<UUID, ActCommitted>>,
-    @Channel("act-failed-out") private val actFailedEmitter: Emitter<Record<UUID, ActFailed>>
+    @Channel("act-failed-out") private val actFailedEmitter: Emitter<Record<UUID, ActFailed>>,
+    @Channel("consensus-vote-out") private val consensusVoteEmitter: Emitter<Record<UUID, ConsensusVote>>,
+    @Channel("consensus-reached-out") private val consensusReachedEmitter: Emitter<Record<UUID, ConsensusReached>>
 ) {
     fun sendIntentDeclared(event: IntentDeclared) {
         intentDeclaredEmitter.send(Record.of(event.eventId, event))
@@ -33,5 +35,13 @@ class CognitiveEventProducerService(
 
     fun sendActFailed(event: ActFailed) {
         actFailedEmitter.send(Record.of(event.eventId, event))
+    }
+
+    fun sendConsensusVote(event: ConsensusVote) {
+        consensusVoteEmitter.send(Record.of(event.eventId, event))
+    }
+
+    fun sendConsensusReached(event: ConsensusReached) {
+        consensusReachedEmitter.send(Record.of(event.eventId, event))
     }
 }

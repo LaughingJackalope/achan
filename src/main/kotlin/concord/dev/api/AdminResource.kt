@@ -63,7 +63,7 @@ class AdminResource(
 
                 UrlSeedResult(
                     url = url,
-                    threadId = thread.id,
+                    threadId = ThreadId(thread.id),
                     status = if (thread.createdAt == thread.updatedAt) "created" else "existing",
                     error = null
                 )

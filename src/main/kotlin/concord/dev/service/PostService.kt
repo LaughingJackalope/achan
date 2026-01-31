@@ -1,6 +1,7 @@
 package concord.dev.service
 
 import concord.dev.domain.*
+import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.persistence.EntityManager
 import jakarta.transaction.Transactional
@@ -12,77 +13,94 @@ class PostService(
     private val threadService: ThreadService
 ) {
 
-    // Self-injection to enable transactional retries via proxy
-    @jakarta.inject.Inject
-    lateinit var self: PostService
-
     /**
-     * Create a post with per-thread sequential numbering using an optimistic approach:
-     * - Compute next number with MAX+1
-     * - Persist and flush
-     * - On unique constraint violation (race), retry a few times with jitter
-     *
-     * We intentionally avoid SERIALIZABLE isolation for better throughput under contention.
+     * Create a post with per-thread sequential numbering.
+     * Uses optimistic locking with retry on unique constraint violations.
      */
+    @Transactional
     fun createPost(
         threadId: ThreadId,
         content: String,
         parentPostId: PostId? = null,
-        metadata: String? = null
+        metadata: String? = null,
+        agentId: String? = null,
+        postType: PostType? = null,
+        confidence: Double? = null
     ): Post {
+        Log.infof("[PostService] Creating post - threadId=%s, contentLength=%d", threadId, content.length)
+        
         val maxRetries = 5
         var lastException: Exception? = null
 
         repeat(maxRetries) { attempt ->
             try {
-                // Call the single-attempt creator in its own transaction (via proxy)
-                return self.tryCreatePostOnce(threadId, content, parentPostId, metadata)
+                return createPostAttempt(threadId, content, parentPostId, metadata, agentId, postType, confidence)
             } catch (e: Exception) {
+                Log.warnf(e, "[PostService] Attempt %d failed for threadId=%s", attempt + 1, threadId)
                 if (isUniqueConstraintViolation(e)) {
                     // Backoff with small jitter before retrying
                     val backoffMs = 5L + (attempt * 5L) + (kotlin.random.Random.nextLong(0, 10))
+                    Log.debugf("[PostService] Backing off for %dms before retry", backoffMs)
                     try { java.lang.Thread.sleep(backoffMs) } catch (_: InterruptedException) {}
                     lastException = e
                 } else {
+                    Log.errorf(e, "[PostService] Non-retryable error creating post")
                     throw e
                 }
             }
         }
 
+        Log.errorf(lastException, "[PostService] Failed to create post after %d retries", maxRetries)
         throw lastException ?: IllegalStateException("Failed to create post due to unknown error")
     }
-
-    @Transactional
-    fun tryCreatePostOnce(
+    
+    private fun createPostAttempt(
         threadId: ThreadId,
         content: String,
         parentPostId: PostId? = null,
-        metadata: String? = null
+        metadata: String? = null,
+        agentId: String? = null,
+        postType: PostType? = null,
+        confidence: Double? = null
     ): Post {
+        Log.debugf("[PostService] Getting next post number for threadId=%s", threadId)
+        
         // Get next post number value
         val nextNumberValue = entityManager.createQuery(
             "SELECT COALESCE(MAX(p.postNumber), 0) + 1 FROM Post p WHERE p.threadId = :threadId",
             Int::class.java
         )
-            .setParameter("threadId", threadId)
+            .setParameter("threadId", threadId.value)
             .singleResult
+        
+        Log.debugf("[PostService] Next post number: %d", nextNumberValue)
 
         // Create post
         val post = Post().apply {
-            this.threadId = threadId
+            this.threadId = threadId.value
             this.parentPostId = parentPostId
-            this.content = Content(content)
-            this.postNumber = PostNumber(nextNumberValue)
+            this.content = content
+            this.postNumber = nextNumberValue
             this.postedAt = Instant.now()
             this.metadata = metadata
+            this.agentId = agentId
+            this.postType = postType
+            this.confidence = confidence
         }
-
+        
+        Log.debugf("[PostService] Persisting post with postNumber=%d", nextNumberValue)
         post.persist()
+        
         // Flush to surface constraint violations within this transaction
+        Log.debugf("[PostService] Flushing entity manager")
         entityManager.flush()
+        
+        Log.debugf("[PostService] Post persisted successfully, incrementing thread count")
 
         // Update thread post count and updated_at
         threadService.incrementPostCount(threadId)
+        
+        Log.infof("[PostService] Post created successfully - postId=%d, postNumber=%d", post.id, post.postNumber)
 
         return post
     }

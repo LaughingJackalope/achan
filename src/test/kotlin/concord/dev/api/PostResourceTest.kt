@@ -130,7 +130,7 @@ class PostResourceTest {
         }
 
         // Verify all post numbers are unique and sequential
-        val postNumbers = responses.map { it.postNumber.value }.sorted()
+        val postNumbers = responses.map { it.postNumber }.sorted()
         assertEquals(listOf(1, 2, 3, 4, 5), postNumbers)
     }
 
@@ -139,7 +139,7 @@ class PostResourceTest {
         val testThreadId = createTestThread()
         val numberOfConcurrentPosts = 10
         val latch = CountDownLatch(1)
-        val futures = mutableListOf<CompletableFuture<concord.dev.domain.PostNumber?>>()
+        val futures = mutableListOf<CompletableFuture<Int?>>()
 
         // Create concurrent post requests
         repeat(numberOfConcurrentPosts) { index ->
@@ -170,7 +170,7 @@ class PostResourceTest {
         latch.countDown()
 
         // Wait for all posts to complete
-        val postNumbers = futures.mapNotNull { it.join()?.value }?.sorted() ?: emptyList()
+        val postNumbers = futures.mapNotNull { it.join() }?.sorted() ?: emptyList()
 
         // Verify all successful posts have unique and sequential post numbers
         // At least some posts should succeed (SERIALIZABLE isolation may cause some to fail)
@@ -211,7 +211,7 @@ class PostResourceTest {
             .`as`(PostListResponse::class.java)
 
         // Verify posts are ordered by post number
-        val postNumbers = response.posts.map { it.postNumber.value }
+        val postNumbers = response.posts.map { it.postNumber }
         assertEquals(listOf(1, 2, 3), postNumbers)
     }
 
@@ -244,7 +244,7 @@ class PostResourceTest {
             .extract()
             .`as`(PostListResponse::class.java)
 
-        assertEquals(listOf(1, 2, 3), page1.posts.map { it.postNumber.value })
+        assertEquals(listOf(1, 2, 3), page1.posts.map { it.postNumber })
 
         // Get second page (size=3, page=1)
         val page2 = given()
@@ -258,7 +258,7 @@ class PostResourceTest {
             .extract()
             .`as`(PostListResponse::class.java)
 
-        assertEquals(listOf(4, 5, 6), page2.posts.map { it.postNumber.value })
+        assertEquals(listOf(4, 5, 6), page2.posts.map { it.postNumber })
 
         // Get third page (size=3, page=2)
         val page3 = given()
@@ -271,7 +271,7 @@ class PostResourceTest {
             .extract()
             .`as`(PostListResponse::class.java)
 
-        assertEquals(listOf(7, 8, 9), page3.posts.map { it.postNumber.value })
+        assertEquals(listOf(7, 8, 9), page3.posts.map { it.postNumber })
 
         // Get last page (size=3, page=3)
         val page4 = given()
@@ -284,7 +284,7 @@ class PostResourceTest {
             .extract()
             .`as`(PostListResponse::class.java)
 
-        assertEquals(listOf(10), page4.posts.map { it.postNumber.value })
+        assertEquals(listOf(10), page4.posts.map { it.postNumber })
     }
 
     @Test
@@ -371,6 +371,6 @@ class PostResourceTest {
             .extract()
             .`as`(ThreadResponse::class.java)
 
-        assertEquals(concord.dev.domain.PostCount(3), thread.postCount)
+        assertEquals(3, thread.postCount)
     }
 }

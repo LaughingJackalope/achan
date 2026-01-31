@@ -19,6 +19,10 @@ quarkus:
     migrate-at-start: true
     baseline-on-migrate: true
 
+  # Redis
+  redis:
+    hosts: ${REDIS_HOST:redis://localhost:6379}
+    timeout: 10s
 
   # Logging
   log:
@@ -37,6 +41,12 @@ quarkus:
         endpoint: ${OTEL_ENDPOINT:http://localhost:4317}
 
 # Application-specific config
+# Instance Configuration (for federation)
+instance:
+  id: ${INSTANCE_ID:instance-local}
+  region: ${INSTANCE_REGION:us-west-1}
+  capabilities: ${INSTANCE_CAPABILITIES:context,llm,summary}
+
 kafka:
   bootstrap:
     servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
@@ -48,6 +58,9 @@ kafka:
     act-proposed: ${KAFKA_TOPIC_ACT_PROPOSED:act.proposed}
     act-committed: ${KAFKA_TOPIC_ACT_COMMITTED:act.committed}
     act-failed: ${KAFKA_TOPIC_ACT_FAILED:act.failed}
+    consensus-vote: ${KAFKA_TOPIC_CONSENSUS_VOTE:consensus.vote}
+    consensus-reached: ${KAFKA_TOPIC_CONSENSUS_REACHED:consensus.reached}
+    agent-notifications: ${KAFKA_TOPIC_AGENT_NOTIFICATIONS:agent.notifications}
 
 # Reactive Messaging (Kafka Consumer/Producer)
 mp:
@@ -123,6 +136,26 @@ mp:
         key.deserializer: org.apache.kafka.common.serialization.UUIDDeserializer
         value.deserializer: io.quarkus.kafka.client.serialization.ObjectMapperDeserializer
         value.deserializer.type: concord.dev.domain.ActFailed
+      consensus-vote-in:
+        connector: smallrye-kafka
+        topic: ${kafka.topic.consensus-vote}
+        bootstrap.servers: ${kafka.bootstrap.servers}
+        group.id: achan-cognitive
+        auto.offset.reset: earliest
+        enable.auto.commit: true
+        key.deserializer: org.apache.kafka.common.serialization.UUIDDeserializer
+        value.deserializer: io.quarkus.kafka.client.serialization.ObjectMapperDeserializer
+        value.deserializer.type: concord.dev.domain.ConsensusVote
+      consensus-reached-in:
+        connector: smallrye-kafka
+        topic: ${kafka.topic.consensus-reached}
+        bootstrap.servers: ${kafka.bootstrap.servers}
+        group.id: achan-cognitive
+        auto.offset.reset: earliest
+        enable.auto.commit: true
+        key.deserializer: org.apache.kafka.common.serialization.UUIDDeserializer
+        value.deserializer: io.quarkus.kafka.client.serialization.ObjectMapperDeserializer
+        value.deserializer.type: concord.dev.domain.ConsensusReached
 
     outgoing:
       url-crawl-out:
@@ -168,3 +201,21 @@ mp:
         bootstrap.servers: ${kafka.bootstrap.servers}
         key.serializer: org.apache.kafka.common.serialization.UUIDSerializer
         value.serializer: io.quarkus.kafka.client.serialization.ObjectMapperSerializer
+      consensus-vote-out:
+        connector: smallrye-kafka
+        topic: ${kafka.topic.consensus-vote}
+        bootstrap.servers: ${kafka.bootstrap.servers}
+        key.serializer: org.apache.kafka.common.serialization.UUIDSerializer
+        value.serializer: io.quarkus.kafka.client.serialization.ObjectMapperSerializer
+      consensus-reached-out:
+        connector: smallrye-kafka
+        topic: ${kafka.topic.consensus-reached}
+        bootstrap.servers: ${kafka.bootstrap.servers}
+        key.serializer: org.apache.kafka.common.serialization.UUIDSerializer
+        value.serializer: io.quarkus.kafka.client.serialization.ObjectMapperSerializer
+      agent-notifications-out:
+        connector: smallrye-kafka
+        topic: ${kafka.topic.agent-notifications}
+        bootstrap.servers: ${kafka.bootstrap.servers}
+        key.serializer: org.apache.kafka.common.serialization.StringSerializer
+        value.serializer: org.apache.kafka.common.serialization.StringSerializer

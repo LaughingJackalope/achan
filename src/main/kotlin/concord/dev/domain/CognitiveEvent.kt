@@ -6,6 +6,9 @@ import java.util.UUID
 /**
  * Represents a single event in the shared cognitive space.
  * This is the base interface for all events that drive the system's reasoning process.
+ *
+ * Federation Note: Events are now federated across multiple AChan instances via shared Kafka.
+ * The `sourceInstance` field identifies which instance created the event.
  */
 sealed interface CognitiveEvent {
     /** The unique identifier for this event. */
@@ -22,6 +25,9 @@ sealed interface CognitiveEvent {
 
     /** The timestamp of when the event was created. */
     val timestamp: Instant
+
+    /** The identifier of the AChan instance that created this event (for federation). */
+    val sourceInstance: String
 }
 
 /**
@@ -36,6 +42,7 @@ data class IntentDeclared(
     override val causalityChain: List<UUID> = emptyList(),
     override val agentId: String,
     override val timestamp: Instant = Instant.now(),
+    override val sourceInstance: String = "unknown",
     val content: String
 ) : CognitiveEvent
 
@@ -51,6 +58,7 @@ data class ContextMaterialized(
     override val causalityChain: List<UUID>,
     override val agentId: String,
     override val timestamp: Instant = Instant.now(),
+    override val sourceInstance: String = "unknown",
     val intentEventId: UUID,
     val intentContent: String,
     val contextObjectIds: List<String>
@@ -70,6 +78,7 @@ data class ActProposed(
     override val causalityChain: List<UUID>,
     override val agentId: String,
     override val timestamp: Instant = Instant.now(),
+    override val sourceInstance: String = "unknown",
     val intentEventId: UUID,
     val action: String, // Could be a more structured object later
     val confidence: Double,
@@ -89,6 +98,7 @@ data class ActCommitted(
     override val causalityChain: List<UUID>,
     override val agentId: String, // The agent who committed the act (could be a "decider" agent)
     override val timestamp: Instant = Instant.now(),
+    override val sourceInstance: String = "unknown",
     val intentEventId: UUID,
     val proposalEventId: UUID,
     val action: String // Could be a more structured object later
@@ -106,6 +116,64 @@ data class ActFailed(
     override val causalityChain: List<UUID>,
     override val agentId: String,
     override val timestamp: Instant = Instant.now(),
+    override val sourceInstance: String = "unknown",
     val failedEventId: UUID,
     val reason: String
+) : CognitiveEvent
+
+/**
+ * A vote from an instance on which proposal should be committed (consensus).
+ *
+ * In a federated deployment, multiple instances may independently rank proposals
+ * and vote on different winners. This event enables distributed consensus where
+ * instances vote and reach agreement via quorum.
+ *
+ * @param intentEventId The ID of the intent being voted on
+ * @param votedProposalId The proposal this instance believes should win
+ * @param votedAction The action content of the voted proposal
+ * @param voteReason Human-readable explanation of why this proposal was chosen
+ * @param votingInstance The instance that cast this vote (redundant with sourceInstance for clarity)
+ * @param rankingMetadata Additional metadata about the ranking (proposal count, confidence gap, etc.)
+ */
+data class ConsensusVote(
+    override val eventId: UUID = UUID.randomUUID(),
+    override val objectId: String,
+    override val causalityChain: List<UUID>,
+    override val agentId: String, // The decider agent that cast this vote
+    override val timestamp: Instant = Instant.now(),
+    override val sourceInstance: String = "unknown",
+    val intentEventId: UUID,
+    val votedProposalId: UUID,
+    val votedAction: String,
+    val voteReason: String,
+    val votingInstance: String, // Explicit instance ID for clarity
+    val rankingMetadata: Map<String, Any> = emptyMap()
+) : CognitiveEvent
+
+/**
+ * Event indicating that consensus was reached for an intent.
+ *
+ * Emitted when a quorum of instances agree on the same proposal.
+ * Contains vote breakdown and consensus metadata.
+ *
+ * @param intentEventId The intent that reached consensus
+ * @param winningProposalId The proposal that won the vote
+ * @param votesReceived Total number of votes received
+ * @param votesRequired Quorum size needed
+ * @param voteBreakdown Map of proposalId -> vote count
+ * @param consensusType "unanimous", "majority", or "quorum"
+ */
+data class ConsensusReached(
+    override val eventId: UUID = UUID.randomUUID(),
+    override val objectId: String,
+    override val causalityChain: List<UUID>,
+    override val agentId: String = "consensus-agent",
+    override val timestamp: Instant = Instant.now(),
+    override val sourceInstance: String = "unknown",
+    val intentEventId: UUID,
+    val winningProposalId: UUID,
+    val votesReceived: Int,
+    val votesRequired: Int,
+    val voteBreakdown: Map<String, Int>,
+    val consensusType: String
 ) : CognitiveEvent

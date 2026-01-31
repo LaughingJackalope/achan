@@ -10,17 +10,17 @@ data class CreateThreadRequest(
 
 data class ThreadResponse(
     val threadId: ThreadId,
-    val url: Url,
+    val url: String,
     val slug: String?,
     val createdAt: Instant,
     val updatedAt: Instant,
-    val postCount: PostCount,
+    val postCount: Int,
     val crawlStatus: CrawlStatus,
     val metadata: String?
 ) {
     companion object {
         fun from(thread: Thread) = ThreadResponse(
-            threadId = thread.id,
+            threadId = ThreadId(thread.id),
             url = thread.url!!,
             slug = thread.slug,
             createdAt = thread.createdAt,

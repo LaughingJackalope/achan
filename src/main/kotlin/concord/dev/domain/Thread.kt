@@ -6,6 +6,7 @@ import jakarta.persistence.*
 import org.hibernate.annotations.JdbcTypeCode
 import org.hibernate.type.SqlTypes
 import java.time.Instant
+import java.util.UUID
 
 @Entity
 @Table(name = "thread")
@@ -13,12 +14,10 @@ class Thread : PanacheEntityBase {
 
     @Id
     @Column(columnDefinition = "UUID")
-    @Convert(converter = ThreadIdConverter::class)
-    var id: ThreadId = ThreadId.random()
+    var id: UUID = UUID.randomUUID()
 
     @Column(nullable = false, unique = true)
-    @Convert(converter = UrlConverter::class)
-    var url: Url? = null
+    var url: String? = null
 
     @Column
     var slug: String? = null
@@ -30,8 +29,7 @@ class Thread : PanacheEntityBase {
     var updatedAt: Instant = Instant.now()
 
     @Column(name = "post_count", nullable = false)
-    @Convert(converter = PostCountConverter::class)
-    var postCount: PostCount = PostCount(0)
+    var postCount: Int = 0
 
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(columnDefinition = "jsonb")
@@ -42,7 +40,7 @@ class Thread : PanacheEntityBase {
     var crawlStatus: CrawlStatus = CrawlStatus.PENDING
 
     companion object : PanacheCompanion<Thread> {
-        fun findByUrl(url: Url): Thread? = find("url", url).firstResult()
+        fun findByUrl(url: String): Thread? = find("url", url).firstResult()
     }
 }
 

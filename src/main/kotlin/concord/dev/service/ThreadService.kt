@@ -21,9 +21,8 @@ class ThreadService(
     @Transactional
     fun createOrGetThread(url: String, slug: String?): Thread {
         val normalizedUrlString = urlNormalizer.normalize(url) ?: url
-        val normalizedUrl = Url(normalizedUrlString)
 
-        val existing = Thread.findByUrl(normalizedUrl)
+        val existing = Thread.findByUrl(normalizedUrlString)
         if (existing != null) {
             // Update timestamp to indicate this thread was accessed again
             existing.updatedAt = Instant.now()
@@ -33,19 +32,19 @@ class ThreadService(
 
         val now = Instant.now()
         val thread = Thread().apply {
-            this.id = ThreadId.random()
-            this.url = normalizedUrl
+            this.id = ThreadId.random().value
+            this.url = normalizedUrlString
             this.slug = slug
             this.createdAt = now
             this.updatedAt = now
-            this.postCount = PostCount(0)
+            this.postCount = 0
             this.crawlStatus = CrawlStatus.PENDING
         }
 
         thread.persist()
 
         // After successful commit, emit crawl request to avoid dual-write inconsistencies
-        val createdThreadId = thread.id
+        val createdThreadId = ThreadId(thread.id)
         val createdThreadUrl = thread.url!!
         tsr.registerInterposedSynchronization(object : Synchronization {
             override fun beforeCompletion() {}
@@ -61,19 +60,18 @@ class ThreadService(
     }
 
     fun getThread(threadId: ThreadId): Thread? {
-        return Thread.find("id", threadId).firstResult()
+        return Thread.find("id", threadId.value).firstResult()
     }
 
     fun getThreadByUrl(url: String): Thread? {
         val normalizedUrlString = urlNormalizer.normalize(url) ?: url
-        val normalizedUrl = Url(normalizedUrlString)
-        return Thread.findByUrl(normalizedUrl)
+        return Thread.findByUrl(normalizedUrlString)
     }
 
     @Transactional(Transactional.TxType.MANDATORY)
     fun incrementPostCount(threadId: ThreadId) {
-        val thread = Thread.find("id", threadId).firstResult() ?: throw IllegalArgumentException("Thread not found: $threadId")
-        thread.postCount = thread.postCount.inc()
+        val thread = Thread.find("id", threadId.value).firstResult() ?: throw IllegalArgumentException("Thread not found: $threadId")
+        thread.postCount = thread.postCount + 1
         thread.updatedAt = Instant.now()
         thread.persist()
     }

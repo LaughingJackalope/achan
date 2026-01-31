@@ -14,7 +14,8 @@ import java.util.UUID
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 class ResponseResource(
-    private val producerService: CognitiveEventProducerService
+    private val producerService: CognitiveEventProducerService,
+    private val instanceConfig: concord.dev.config.InstanceConfig
 ) {
 
     @POST
@@ -22,7 +23,8 @@ class ResponseResource(
         val intent = IntentDeclared(
             objectId = request.objectId,
             content = request.content,
-            agentId = request.agentId
+            agentId = request.agentId,
+            sourceInstance = instanceConfig.instanceId
         )
         producerService.sendIntentDeclared(intent)
 

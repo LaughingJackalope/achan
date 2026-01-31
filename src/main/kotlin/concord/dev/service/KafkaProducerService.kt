@@ -2,7 +2,6 @@ package concord.dev.service
 
 import com.fasterxml.jackson.databind.ObjectMapper
 import concord.dev.domain.ThreadId
-import concord.dev.domain.Url
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata
 import jakarta.enterprise.context.ApplicationScoped
 import org.eclipse.microprofile.reactive.messaging.Channel
@@ -19,10 +18,10 @@ class KafkaProducerService(
 ) {
     private val log: Logger = Logger.getLogger(KafkaProducerService::class.java)
 
-    fun sendUrlCrawlRequest(threadId: ThreadId, url: Url) {
+    fun sendUrlCrawlRequest(threadId: ThreadId, url: String) {
         val message = UrlCrawlRequest(
             threadId = threadId.value.toString(),
-            url = url.value,
+            url = url,
             requestedAt = Instant.now().toString()
         )
 

@@ -24,6 +24,7 @@ dependencies {
     implementation 'io.quarkus:quarkus-rest-jackson'
     implementation 'com.fasterxml.jackson.module:jackson-module-kotlin'
     implementation 'io.quarkus:quarkus-rest-qute'
+    implementation 'io.quarkus:quarkus-websockets'
 
     // Validation
     implementation 'io.quarkus:quarkus-hibernate-validator'
@@ -31,6 +32,9 @@ dependencies {
     // Messaging
     implementation 'io.quarkus:quarkus-kafka-client'
     implementation 'io.quarkus:quarkus-messaging-kafka'
+
+    // Redis
+    implementation 'io.quarkus:quarkus-redis-client'
 
     // Content Processing
     implementation 'org.commonmark:commonmark:0.22.0'

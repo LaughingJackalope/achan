@@ -80,7 +80,7 @@ class PageContentService {
     }
 
     private fun updateThreadStatus(threadId: ThreadId, statusCode: Int) {
-        val thread = Thread.find("id", threadId).firstResult()
+        val thread = Thread.find("id", threadId.value).firstResult()
             ?: throw IllegalArgumentException("Thread not found: $threadId")
 
         thread.crawlStatus = when (statusCode) {

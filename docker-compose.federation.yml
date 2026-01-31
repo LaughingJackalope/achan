@@ -1,0 +1,206 @@
+# Docker Compose configuration for multi-instance AChan federation testing
+#
+# This setup creates 3 AChan instances sharing:
+# - Single Kafka cluster (event federation)
+# - Single Redis instance (proposal collection & instance registry)
+# - Single PostgreSQL database (shared data)
+#
+# Each instance:
+# - Has unique INSTANCE_ID
+# - Runs on different port
+# - Has specialized capabilities (can be customized)
+#
+# Usage:
+#   docker-compose -f docker-compose.federation.yml up -d
+#
+# Test federation:
+#   - Submit intent to instance-A (port 8080)
+#   - Watch logs to see all instances processing events
+#   - Observe consensus and proposal competition
+
+version: '3.8'
+
+services:
+  # === Infrastructure (Shared) ===
+
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: achan-postgres
+    environment:
+      POSTGRES_DB: achan
+      POSTGRES_USER: achan
+      POSTGRES_PASSWORD: achan
+    ports:
+      - "54320:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U achan"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: achan-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: achan-kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,PLAINTEXT_INTERNAL://kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_INTERNAL:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "kafka-broker-api-versions --bootstrap-server localhost:9092"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: achan-redis
+    ports:
+      - "6380:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: achan-kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - "18081:8080"
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:9093
+      KAFKA_CLUSTERS_0_ZOOKEEPER: zookeeper:2181
+
+  # === AChan Instances ===
+
+  # Instance A: Full-featured (context + LLM + summary)
+  achan-instance-a:
+    build: .
+    container_name: achan-instance-a
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+    ports:
+      - "8080:8080"
+    environment:
+      # Instance identity
+      INSTANCE_ID: instance-A
+      INSTANCE_REGION: us-west-1
+      INSTANCE_CAPABILITIES: context,llm,summary
+
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: achan
+      DB_USERNAME: achan
+      DB_PASSWORD: achan
+
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9093
+
+      # Redis
+      REDIS_HOST: redis://redis:6379
+
+      # Logging
+      APP_LOG_LEVEL: DEBUG
+    volumes:
+      - ./build/quarkus-app:/deployments
+
+  # Instance B: LLM specialist (only LLM + summary)
+  achan-instance-b:
+    build: .
+    container_name: achan-instance-b
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+    ports:
+      - "8091:8080"
+    environment:
+      # Instance identity
+      INSTANCE_ID: instance-B
+      INSTANCE_REGION: us-east-1
+      INSTANCE_CAPABILITIES: llm,summary
+
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: achan
+      DB_USERNAME: achan
+      DB_PASSWORD: achan
+
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9093
+
+      # Redis
+      REDIS_HOST: redis://redis:6379
+
+      # Logging
+      APP_LOG_LEVEL: DEBUG
+    volumes:
+      - ./build/quarkus-app:/deployments
+
+  # Instance C: Context specialist (only context agent)
+  achan-instance-c:
+    build: .
+    container_name: achan-instance-c
+    depends_on:
+      - postgres
+      - kafka
+      - redis
+    ports:
+      - "8092:8080"
+    environment:
+      # Instance identity
+      INSTANCE_ID: instance-C
+      INSTANCE_REGION: eu-west-1
+      INSTANCE_CAPABILITIES: context
+
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: achan
+      DB_USERNAME: achan
+      DB_PASSWORD: achan
+
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9093
+
+      # Redis
+      REDIS_HOST: redis://redis:6379
+
+      # Logging
+      APP_LOG_LEVEL: DEBUG
+    volumes:
+      - ./build/quarkus-app:/deployments
+
+volumes:
+  postgres_data:
+  redis_data:

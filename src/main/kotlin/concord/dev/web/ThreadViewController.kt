@@ -30,8 +30,8 @@ class ThreadViewController(
         val thread = threadService.getThread(threadId)
             ?: return renderError("Thread not found", theme)
 
-        val content = pageContentService.getContent(thread.id)
-        val posts = postService.getPosts(thread.id, size = 100, page = 0)
+        val content = pageContentService.getContent(ThreadId(thread.id))
+        val posts = postService.getPosts(ThreadId(thread.id), size = 100, page = 0)
 
         return renderThread(thread, content, posts, theme)
     }
@@ -52,8 +52,8 @@ class ThreadViewController(
         val thread = threadService.getThreadByUrl(url)
             ?: return renderError("Thread not found for URL: $url", theme)
 
-        val content = pageContentService.getContent(thread.id)
-        val posts = postService.getPosts(thread.id, size = 100, page = 0)
+        val content = pageContentService.getContent(ThreadId(thread.id))
+        val posts = postService.getPosts(ThreadId(thread.id), size = 100, page = 0)
 
         return renderThread(thread, content, posts, theme)
     }
