@@ -7,6 +7,8 @@ import io.mockk.*
 import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata
 import org.eclipse.microprofile.reactive.messaging.Emitter
 import org.eclipse.microprofile.reactive.messaging.Message
+import org.jboss.logmanager.Level
+import org.jboss.logmanager.Logger
 import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
@@ -88,7 +90,14 @@ class KafkaProducerServiceTest {
         every { emitter.send(any<Message<String>>()) } throws RuntimeException("Kafka send failed")
 
         // Should not throw - service catches and logs
-        service.sendUrlCrawlRequest(threadId, url)
+        val logger = Logger.getLogger(KafkaProducerService::class.java.name)
+        val previousLevel = logger.level
+        try {
+            logger.level = Level.OFF
+            service.sendUrlCrawlRequest(threadId, url)
+        } finally {
+            logger.level = previousLevel
+        }
 
         verify(exactly = 1) { emitter.send(any<Message<String>>()) }
     }

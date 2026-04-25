@@ -1,12 +1,10 @@
 package concord.dev.service
 
 import concord.dev.domain.*
-import io.mockk.*
 import io.quarkus.test.junit.QuarkusTest
 import jakarta.inject.Inject
 import jakarta.persistence.EntityManager
 import jakarta.transaction.Transactional
-import org.junit.jupiter.api.AfterEach
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import kotlin.test.assertEquals
@@ -18,22 +16,12 @@ class PostServiceTest {
     @Inject
     lateinit var entityManager: EntityManager
 
-    private lateinit var mockThreadService: ThreadService
-
     @BeforeEach
     @Transactional
     fun setup() {
         // Clean database
         Post.deleteAll()
         Thread.deleteAll()
-
-        // Create mock thread service
-        mockThreadService = mockk<ThreadService>(relaxed = true)
-    }
-
-    @AfterEach
-    fun tearDown() {
-        clearAllMocks()
     }
 
     private fun createTestThread(): ThreadId {
@@ -54,7 +42,7 @@ class PostServiceTest {
     @Transactional
     fun `createPost - creates post with sequential number`() {
         val threadId = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
 
         val post = service.createPost(
             threadId = threadId,
@@ -69,14 +57,13 @@ class PostServiceTest {
         assertNotNull(post.postedAt)
 
         // Verify thread service was called to increment count
-        verify(exactly = 1) { mockThreadService.incrementPostCount(threadId) }
     }
 
     @Test
     @Transactional
     fun `createPost - sequential numbering for multiple posts`() {
         val threadId = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
 
         val post1 = service.createPost(threadId, "First post")
         val post2 = service.createPost(threadId, "Second post")
@@ -87,14 +74,13 @@ class PostServiceTest {
         assertEquals(3, post3.postNumber)
 
         // Verify thread service was called three times
-        verify(exactly = 3) { mockThreadService.incrementPostCount(threadId) }
     }
 
     @Test
     @Transactional
     fun `createPost - creates reply with parent post ID`() {
         val threadId = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
 
         val parentPost = service.createPost(threadId, "Parent post")
         val replyPost = service.createPost(
@@ -112,7 +98,7 @@ class PostServiceTest {
     @Transactional
     fun `createPost - stores metadata when provided`() {
         val threadId = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
         val metadata = """{"userAgent": "Mozilla/5.0", "ipAddress": "192.168.1.1"}"""
 
         val post = service.createPost(
@@ -129,7 +115,7 @@ class PostServiceTest {
     @Transactional
     fun `getPosts - retrieves posts for thread with default pagination`() {
         val threadId = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
 
         // Create multiple posts
         repeat(5) { i ->
@@ -148,7 +134,7 @@ class PostServiceTest {
     @Transactional
     fun `getPosts - respects size parameter`() {
         val threadId = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
 
         repeat(10) { i ->
             service.createPost(threadId, "Post ${i + 1}")
@@ -163,7 +149,7 @@ class PostServiceTest {
     @Transactional
     fun `getPosts - respects page parameter`() {
         val threadId = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
 
         repeat(10) { i ->
             service.createPost(threadId, "Post ${i + 1}")
@@ -180,7 +166,7 @@ class PostServiceTest {
     @Transactional
     fun `getPosts - filters by parent post ID`() {
         val threadId = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
 
         val parentPost = service.createPost(threadId, "Parent post")
         service.createPost(threadId, "Other post")
@@ -198,7 +184,7 @@ class PostServiceTest {
     @Transactional
     fun `getPosts - returns empty list for thread with no posts`() {
         val threadId = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
 
         val posts = service.getPosts(threadId)
 
@@ -234,7 +220,7 @@ class PostServiceTest {
         post1.persist()
         post2.persist()
 
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
         assertEquals(2, service.getPostCount(threadId))
     }
 
@@ -242,7 +228,7 @@ class PostServiceTest {
     @Transactional
     fun `getPostCount - returns zero for thread with no posts`() {
         val threadId = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
 
         assertEquals(0, service.getPostCount(threadId))
     }
@@ -252,7 +238,7 @@ class PostServiceTest {
     fun `getPosts - handles multiple threads independently`() {
         val threadId1 = createTestThread()
         val threadId2 = createTestThread()
-        val service = PostService(entityManager, mockThreadService)
+        val service = PostService(entityManager)
 
         service.createPost(threadId1, "Thread 1 - Post 1")
         service.createPost(threadId1, "Thread 1 - Post 2")

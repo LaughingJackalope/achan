@@ -37,6 +37,14 @@ quarkus:
         level: DEBUG
       "org.testcontainers":
         level: INFO
+      "org.apache.kafka":
+        level: ERROR
+      "org.apache.kafka.clients":
+        level: ERROR
+      "org.apache.kafka.clients.NetworkClient":
+        level: ERROR
+      "org.apache.kafka.clients.Metadata":
+        level: ERROR
     console:
       json: false
 

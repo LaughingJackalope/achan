@@ -4,13 +4,13 @@ import concord.dev.domain.*
 import io.quarkus.logging.Log
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.persistence.EntityManager
+import jakarta.persistence.LockModeType
 import jakarta.transaction.Transactional
 import java.time.Instant
 
 @ApplicationScoped
 class PostService(
-    private val entityManager: EntityManager,
-    private val threadService: ThreadService
+    private val entityManager: EntityManager
 ) {
 
     /**
@@ -63,17 +63,13 @@ class PostService(
         postType: PostType? = null,
         confidence: Double? = null
     ): Post {
-        Log.debugf("[PostService] Getting next post number for threadId=%s", threadId)
-        
-        // Get next post number value
-        val nextNumberValue = entityManager.createQuery(
-            "SELECT COALESCE(MAX(p.postNumber), 0) + 1 FROM Post p WHERE p.threadId = :threadId",
-            Int::class.java
-        )
-            .setParameter("threadId", threadId.value)
-            .singleResult
-        
-        Log.debugf("[PostService] Next post number: %d", nextNumberValue)
+        Log.debugf("[PostService] Locking thread for post number allocation - threadId=%s", threadId)
+
+        val thread = entityManager.find(Thread::class.java, threadId.value, LockModeType.PESSIMISTIC_WRITE)
+            ?: throw IllegalArgumentException("Thread not found: $threadId")
+
+        val nextNumberValue = thread.postCount + 1
+        Log.debugf("[PostService] Next post number (locked): %d", nextNumberValue)
 
         // Create post
         val post = Post().apply {
@@ -95,10 +91,11 @@ class PostService(
         Log.debugf("[PostService] Flushing entity manager")
         entityManager.flush()
         
-        Log.debugf("[PostService] Post persisted successfully, incrementing thread count")
+        Log.debugf("[PostService] Post persisted successfully, updating thread count")
 
-        // Update thread post count and updated_at
-        threadService.incrementPostCount(threadId)
+        thread.postCount = nextNumberValue
+        thread.updatedAt = Instant.now()
+        thread.persist()
         
         Log.infof("[PostService] Post created successfully - postId=%d, postNumber=%d", post.id, post.postNumber)
 

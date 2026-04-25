@@ -3,10 +3,15 @@ package concord.dev.service
 import concord.dev.domain.*
 import jakarta.enterprise.context.ApplicationScoped
 import jakarta.transaction.Transactional
+import org.hibernate.exception.ConstraintViolationException
+import org.jboss.logging.Logger
 import java.time.Instant
+
+class MissingThreadException(message: String) : RuntimeException(message)
 
 @ApplicationScoped
 class PageContentService {
+    private val log: Logger = Logger.getLogger(PageContentService::class.java)
 
     @Transactional
     fun storeContent(
@@ -21,6 +26,8 @@ class PageContentService {
         contentHash: String?,
         metadata: String?
     ): PageContent {
+        ensureThreadExists(threadId)
+
         // Check if content already exists for this thread
         val existing = PageContent.findByThreadId(threadId)
 
@@ -36,7 +43,7 @@ class PageContentService {
             existing.fetchedAt = Instant.now()
             existing.contentHash = contentHash
             existing.metadata = metadata
-            existing.persist()
+            persistSafely(existing, threadId)
 
             // Update thread status
             updateThreadStatus(threadId, statusCode)
@@ -59,7 +66,7 @@ class PageContentService {
             this.metadata = metadata
         }
 
-        content.persist()
+        persistSafely(content, threadId)
 
         // Update thread status
         updateThreadStatus(threadId, statusCode)
@@ -90,5 +97,23 @@ class PageContentService {
         }
         thread.updatedAt = Instant.now()
         thread.persist()
+    }
+
+    private fun ensureThreadExists(threadId: ThreadId) {
+        val exists = Thread.find("id", threadId.value).firstResult() != null
+        if (!exists) {
+            throw MissingThreadException("Thread not found for page content: $threadId")
+        }
+    }
+
+    private fun persistSafely(content: PageContent, threadId: ThreadId) {
+        try {
+            content.persist()
+        } catch (e: ConstraintViolationException) {
+            if (e.constraintName == "page_content_thread_id_fkey") {
+                log.error("Cannot persist PageContent: thread does not exist yet (threadId=$threadId)", e)
+            }
+            throw e
+        }
     }
 }

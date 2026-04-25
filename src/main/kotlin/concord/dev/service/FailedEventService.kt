@@ -137,6 +137,7 @@ class FailedEventService {
      */
     private fun classifyError(error: Exception): ErrorCategory {
         return when {
+            error is MissingThreadException -> ErrorCategory.TRANSIENT
             error is java.net.SocketTimeoutException -> ErrorCategory.TIMEOUT
             error is java.net.UnknownHostException -> ErrorCategory.PERMANENT
             error is java.io.IOException -> ErrorCategory.TRANSIENT

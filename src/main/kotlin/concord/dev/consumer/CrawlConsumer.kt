@@ -54,19 +54,34 @@ class CrawlConsumer(
                 )
             )
 
-            // Store the content
-            pageContentService.storeContent(
-                threadId = concord.dev.domain.ThreadId(threadId),
-                url = result.url,
-                title = result.title,
-                description = result.description,
-                articleText = result.articleText,
-                rawHtml = result.rawHtml,
-                contentType = result.contentType,
-                statusCode = result.statusCode,
-                contentHash = contentHash,
-                metadata = metadataJson
-            )
+            // Store the content (retry briefly if the thread hasn't been committed yet)
+            val maxAttempts = 3
+            val retryDelayMs = 250L
+            var attempt = 0
+            while (true) {
+                try {
+                    pageContentService.storeContent(
+                        threadId = concord.dev.domain.ThreadId(threadId),
+                        url = result.url,
+                        title = result.title,
+                        description = result.description,
+                        articleText = result.articleText,
+                        rawHtml = result.rawHtml,
+                        contentType = result.contentType,
+                        statusCode = result.statusCode,
+                        contentHash = contentHash,
+                        metadata = metadataJson
+                    )
+                    break
+                } catch (e: MissingThreadException) {
+                    attempt += 1
+                    if (attempt >= maxAttempts) {
+                        throw e
+                    }
+                    log.warn("Thread not found yet for crawl ${request.threadId}; retrying in ${retryDelayMs}ms (attempt $attempt/$maxAttempts)")
+                    Thread.sleep(retryDelayMs)
+                }
+            }
 
             log.info("Successfully crawled and stored content for thread ${request.threadId}")
 

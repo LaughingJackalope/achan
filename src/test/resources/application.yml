@@ -1,0 +1,2 @@
+# Empty base config so application-test.yml in test resources is loaded.
+quarkus: {}
