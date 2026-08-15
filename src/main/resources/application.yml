@@ -35,10 +35,3 @@ quarkus:
     exporter:
       otlp:
         endpoint: ${OTEL_ENDPOINT:http://localhost:4317}
-
-# Application-specific config
-kafka:
-  bootstrap:
-    servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
-  topic:
-    url-crawl-requests: ${KAFKA_TOPIC_URL_CRAWL:url-crawl-requests}

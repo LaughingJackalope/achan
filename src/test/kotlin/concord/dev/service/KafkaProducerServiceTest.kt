@@ -133,6 +133,17 @@ class KafkaProducerServiceTest {
     }
 
     @Test
+    fun `sendUrlCrawlRequest - handles synchronous producer failure gracefully`() {
+        every {
+            mockProducer.send(any(), any())
+        } throws org.apache.kafka.common.errors.TimeoutException("Kafka metadata unavailable")
+
+        service.sendUrlCrawlRequest(UUID.randomUUID(), "https://example.com/unavailable")
+
+        verify(exactly = 1) { mockProducer.send(any(), any()) }
+    }
+
+    @Test
     fun `sendUrlCrawlRequest - handles special characters in URL`() {
         val threadId = UUID.randomUUID()
         val url = "https://example.com/path?query=value&foo=bar#fragment"

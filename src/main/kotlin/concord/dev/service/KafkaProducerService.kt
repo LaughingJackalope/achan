@@ -26,11 +26,17 @@ class KafkaProducerService(
         val json = objectMapper.writeValueAsString(message)
         val record = ProducerRecord<String, String>(topic, threadId.toString(), json)
 
-        producer.send(record) { metadata, exception ->
-            if (exception != null) {
-                // Log error but don't throw - this is async callback
-                println("ERROR: Failed to send Kafka message for thread $threadId: ${exception.message}")
+        try {
+            producer.send(record) { _, exception ->
+                if (exception != null) {
+                    // Log error but don't throw - this is async callback
+                    println("ERROR: Failed to send Kafka message for thread $threadId: ${exception.message}")
+                }
             }
+        } catch (exception: Exception) {
+            // send() itself can time out before the callback is registered when a
+            // broker is unavailable. Thread creation must still complete.
+            println("ERROR: Failed to queue Kafka message for thread $threadId: ${exception.message}")
         }
     }
 }

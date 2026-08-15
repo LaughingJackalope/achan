@@ -13,8 +13,6 @@ quarkus:
 
   # Hibernate
   hibernate-orm:
-    database:
-      generation: drop-and-create
     log:
       sql: true
 
