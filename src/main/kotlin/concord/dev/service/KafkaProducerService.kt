@@ -1,42 +1,44 @@
 package concord.dev.service
 
-import jakarta.enterprise.context.ApplicationScoped
-import org.apache.kafka.clients.producer.KafkaProducer
-import org.apache.kafka.clients.producer.ProducerRecord
-import org.eclipse.microprofile.config.inject.ConfigProperty
-import java.time.Instant
-import java.util.UUID
 import com.fasterxml.jackson.databind.ObjectMapper
+import concord.dev.domain.ThreadId
+import io.smallrye.reactive.messaging.kafka.api.OutgoingKafkaRecordMetadata
+import jakarta.enterprise.context.ApplicationScoped
+import org.eclipse.microprofile.reactive.messaging.Channel
+import org.eclipse.microprofile.reactive.messaging.Emitter
+import org.eclipse.microprofile.reactive.messaging.Message
+import org.jboss.logging.Logger
+import java.time.Instant
 
 @ApplicationScoped
 class KafkaProducerService(
-    @ConfigProperty(name = "kafka.topic.url-crawl-requests")
-    private val topic: String,
-    private val producer: KafkaProducer<String, String>,
+    @Channel("url-crawl-out")
+    private val emitter: Emitter<String>,
     private val objectMapper: ObjectMapper
 ) {
+    private val log: Logger = Logger.getLogger(KafkaProducerService::class.java)
 
-    fun sendUrlCrawlRequest(threadId: UUID, url: String) {
+    fun sendUrlCrawlRequest(threadId: ThreadId, url: String) {
         val message = UrlCrawlRequest(
-            threadId = threadId.toString(),
+            threadId = threadId.value.toString(),
             url = url,
             requestedAt = Instant.now().toString()
         )
 
         val json = objectMapper.writeValueAsString(message)
-        val record = ProducerRecord<String, String>(topic, threadId.toString(), json)
+
+        // Attach Kafka key via metadata; topic is configured on the channel
+        val metadata = OutgoingKafkaRecordMetadata.builder<String>()
+            .withKey(threadId.value.toString())
+            .build()
+
+        val msg: Message<String> = Message.of(json).addMetadata(metadata)
 
         try {
-            producer.send(record) { _, exception ->
-                if (exception != null) {
-                    // Log error but don't throw - this is async callback
-                    println("ERROR: Failed to send Kafka message for thread $threadId: ${exception.message}")
-                }
-            }
-        } catch (exception: Exception) {
-            // send() itself can time out before the callback is registered when a
-            // broker is unavailable. Thread creation must still complete.
-            println("ERROR: Failed to queue Kafka message for thread $threadId: ${exception.message}")
+            emitter.send(msg)
+        } catch (e: Exception) {
+            // Log and swallow to avoid failing caller path; monitoring will catch delivery issues
+            log.error("Failed to dispatch crawl request for thread $threadId", e)
         }
     }
 }

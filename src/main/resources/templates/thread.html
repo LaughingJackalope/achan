@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{thread.url} - AChan</title>
+
+    <!-- Base styles - works everywhere -->
+    <link rel="stylesheet" href="/css/base.css">
+
+    <!-- Theme - user customizable -->
+    {#if theme}
+    <link rel="stylesheet" href="/themes/{theme}.css">
+    {/if}
+
+    <!-- OpenGraph for sharing -->
+    {#if content}
+    <meta property="og:title" content="{content.title ?: thread.url}">
+    <meta property="og:description" content="{content.description ?: 'Discussion thread'}">
+    <meta property="og:type" content="article">
+    {/if}
+</head>
+<body>
+    <!-- URL - Monospace, centered -->
+    <div class="url">
+        <a href="{thread.url}" rel="nofollow">{thread.url}</a>
+    </div>
+
+    <hr class="thick">
+
+    <!-- Thread Header - Title and description if crawled -->
+    {#if content}
+    <header class="thread-header">
+        {#if content.title}
+        <h1 class="thread-title">{content.title}</h1>
+        {/if}
+
+        {#if content.description}
+        <p class="thread-description">{content.description}</p>
+        {/if}
+    </header>
+
+    <!-- Article Content - Extracted text -->
+    {#if content.articleText}
+    <article class="article-content">
+        {content.articleText}
+    </article>
+    {/if}
+    {/if}
+
+    <!-- Metadata - Post count, crawl status -->
+    <div class="metadata">
+        {thread.postCount} {thread.postCount == 1 ? 'post' : 'posts'}
+        {#if content}
+        · crawled {content.fetchedAt}
+        {/if}
+        · status: {thread.crawlStatus}
+    </div>
+
+    <hr>
+
+    <!-- Posts - Discussion -->
+    {#if posts}
+    <section class="posts">
+        {#for post in posts}
+        <article class="post">
+            <div class="post-header">
+                <span class="post-number">[{post.postNumber}]</span>
+                <span class="metadata">
+                    Anonymous · {post.postedAt}
+                    {#if post.parentPostId}
+                    · reply to [{post.parentPostId}]
+                    {/if}
+                </span>
+            </div>
+            <div class="post-content">
+                {post.content}
+            </div>
+        </article>
+        {/for}
+    </section>
+    {#else}
+    <p class="metadata">No posts yet. Be the first to comment.</p>
+    {/if}
+
+    <!-- Footer - Minimal navigation -->
+    <hr>
+    <footer class="metadata">
+        <p>
+            <a href="/">Home</a>
+            ·
+            Themes:
+            <a href="?theme=">Default</a> |
+            <a href="?theme=dark">Dark</a> |
+            <a href="?theme=sepia">Sepia</a> |
+            <a href="?theme=high-contrast">High Contrast</a>
+        </p>
+    </footer>
+</body>
+</html>

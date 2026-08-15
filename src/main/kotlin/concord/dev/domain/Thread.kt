@@ -17,7 +17,7 @@ class Thread : PanacheEntityBase {
     var id: UUID = UUID.randomUUID()
 
     @Column(nullable = false, unique = true)
-    lateinit var url: String
+    var url: String? = null
 
     @Column
     var slug: String? = null

@@ -1,0 +1,23 @@
+/**
+ * High Contrast Theme
+ * Maximum readability, accessibility-focused
+ */
+
+:root {
+    --color-text: #000000;
+    --color-text-secondary: #000000;
+    --color-background: #ffffff;
+    --color-border: #000000;
+    --color-link: #0000ff;
+    --color-link-visited: #800080;
+}
+
+/* Thicker borders for visibility */
+hr {
+    border-top-width: 2px;
+}
+
+.post {
+    border: 1px solid #000000;
+    padding: var(--space-md);
+}
