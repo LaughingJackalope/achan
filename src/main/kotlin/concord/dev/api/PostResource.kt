@@ -124,7 +124,10 @@ class PostResource(
         val total = postService.getPostCount(threadId)
 
         val response = PostListResponse(
-            posts = posts.map { PostResponse.from(it) },
+            posts = posts.map { post ->
+                val contentHtml = markdownService.render(post.content)
+                PostResponse.from(post, contentHtml)
+            },
             total = total,
             size = validatedSize,
             page = validatedPage

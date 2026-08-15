@@ -18,6 +18,7 @@ data class PostResponse(
     val threadId: ThreadId,
     val parentPostId: PostId?,
     val content: String,
+    val contentHtml: String,
     val postedAt: Instant,
     val postNumber: Int,
     val agentId: String? = null,
